@@ -6,6 +6,7 @@ prefix=/data/data/com.termux/files/usr
 payload_root=$prefix/share/steam-arm64-termux
 archive=$payload_root/steam-arm64-termux-0.1.1-bootstrap.tar.zst
 archive_sha256=57c0fabde20697b57aa016c16c1559f40d949ae2b4ee342087251127fc018e8c
+package_version=0.1.1
 install_root=${STEAM_ARM64_INSTALL_DIR:-${HOME:?HOME is required}/.local/share/steam-arm64-termux}
 download_cache=${STEAM_ARM64_DOWNLOAD_CACHE:-${HOME:?HOME is required}/.cache/steam-arm64-termux/downloads}
 stage=
@@ -34,20 +35,27 @@ trap cleanup EXIT HUP INT TERM
 [[ $download_cache == /* ]] ||
     die 'STEAM_ARM64_DOWNLOAD_CACHE must be an absolute path'
 
+mkdir -p -- "${install_root%/*}" "$download_cache"
+stage=$(mktemp -d "$prefix/tmp/steam-arm64-setup.XXXXXX")
+mkdir -- "$stage/extract"
+tar --zstd -xf "$archive" -C "$stage/extract"
+payload=$stage/extract/steam-arm64-termux
+[[ -x $payload/bootstrap-public-steam.sh && -x $payload/run-public-steam.sh ]] ||
+    die 'packaged bootstrap has an unexpected layout'
+
 if [[ ! -e $install_root ]]; then
-    mkdir -p -- "${install_root%/*}" "$download_cache"
-    stage=$(mktemp -d "$prefix/tmp/steam-arm64-setup.XXXXXX")
-    mkdir -- "$stage/extract"
-    tar --zstd -xf "$archive" -C "$stage/extract"
-    payload=$stage/extract/steam-arm64-termux
-    [[ -x $payload/bootstrap-public-steam.sh && -x $payload/run-public-steam.sh ]] ||
-        die 'packaged bootstrap has an unexpected layout'
     mv -- "$payload" "$install_root"
 elif [[ ! -x $install_root/bootstrap-public-steam.sh ]]; then
     die "existing destination is not a Steam ARM64 installation: $install_root"
+else
+    # Refresh only project-owned files present in the redistribution-safe
+    # bootstrap. Downloaded Valve files, Steam libraries, compatdata, games,
+    # prefixes and caches are absent from the archive and remain untouched.
+    cp -a -- "$payload/." "$install_root/"
 fi
 
 printf 'Steam ARM64 first-run setup: %s\n' "$install_root"
 STEAM_ARM64_DOWNLOAD_CACHE=$download_cache \
     "$install_root/bootstrap-public-steam.sh"
+printf '%s\n' "$package_version" > "$install_root/.steam-arm64-bootstrap-version"
 printf '\nSetup complete. Close this terminal and open Steam ARM64 from the menu.\n'

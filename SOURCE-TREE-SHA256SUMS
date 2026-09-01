@@ -22,9 +22,9 @@ c95fcaa0407e07e97c42e32bf6f668386a69307bc7a04f47dcd0a4aac521d4c5  ./make-public-
 6b329a274158c9497ac68c31edc153fa45c21bbc49b85d73cfc0f5e9ae04afca  ./make-public-release.sh
 f6f998adbd3a43f930bbea01163e446a2b1c51d638f16114d161f98483811964  ./make-public-source-tree.sh
 4f2173a3a63055c5dc7106d39ca014a522839d2ce9d9fcfac137c13c6b12a9b8  ./make-termux-deb.sh
-f3877dec370847bd0548942b4063bb26da6d054469d09e06c3cee45e11127853  ./packaging/steam-arm64/release.lock
-dc936ed9152e70ac61986ce4eb345abb5f89d0977c39b393d2dcfc118fa7b424  ./packaging/steam-arm64/steam-arm64
-9fcd890b9a832ef26c0dcc424e0576f738c5c31b705c766c8cb92fa62e564439  ./packaging/steam-arm64/steam-arm64-setup
+55f2730e42c7f616df8f6c69d2e228f1acdf5e10f6d0af0c6d759e22339b0d4a  ./packaging/steam-arm64/release.lock
+4bc7607755f858617d360aeb6ba2fbeede081c2ca056afbc8a207ffa1583f36a  ./packaging/steam-arm64/steam-arm64
+e71844beef399bcf6d9896d59085dc447add7ab067f276ab5cda3cdd4efb00ab  ./packaging/steam-arm64/steam-arm64-setup
 1d5dc9e8b5af331c53fd82059e0306d70a011d9bbacc077ef3e7922071f94239  ./packaging/steam-arm64/steam-arm64-termux.svg
 5608b77cec214109b184d3d670e7517ed9b3336550d9c8a1ef32eb6f4e9e3665  ./packaging/steam-arm64/steam-arm64.desktop
 89ad001ad440a49609f150d4ad25eedbe321b600adb1442da83a20c6cb298250  ./proton-bionic-fex-tool/compatibilitytool.vdf
