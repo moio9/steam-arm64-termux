@@ -123,7 +123,7 @@ fda730fdad79bbc59d2ba107f2ce97222d8e91dd199a6d2efbcd4a07eb433795  ./refresh-publ
 cb69a6ad57b7bd3a697690a5fdc47f8d6453d79b0227bf56dd9d868a1495979d  ./run-public-steam.sh
 2a28a83d053fc6e9148b3a0be6e041787b0a90882c09b94b73309502cb54c65b  ./run-steam-tgcompat.sh
 0d29d6b56ab7a27ab8ff42846c142eecf3d2326e85e2e1a604fa22a47dd2a8e8  ./run-steam.sh
-6b3babff4d3f65ac04d60d9a0090097063c18092b6d8251ce1888e15cc89f3b4  ./setup-apt-repository.sh
+6ddcc1690c675c7e85cb382c9fe2b3305ae23a71fb6b0d1af05532ccaa40911d  ./setup-apt-repository.sh
 573b36f92c1a0cd5c64fa8df92fd2436d5516ac62cfbfc2f96fe2ad4ea1e1fb4  ./steam-bridge/LICENSE
 4e98feb07bd871d2f3d1b965084e1f511016f0e4e7b72f5aa8074a81468231bd  ./steam-bridge/README.md
 02973ebcfa474f79ad787f3f97f2d221f1ff3ef24e566a1f377ad3bce3d6f232  ./steam-bridge/applist_native.inc
