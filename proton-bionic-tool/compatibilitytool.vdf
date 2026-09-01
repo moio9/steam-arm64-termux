@@ -1,0 +1,14 @@
+"compatibilitytools"
+{
+    "compat_tools"
+    {
+        "proton_bionic_termux"
+        {
+            "install_path" "."
+            "display_name" "Proton Bionic (Termux)"
+            "from_oslist" "windows"
+            "to_oslist" "linux"
+            "priority" "-90"
+        }
+    }
+}

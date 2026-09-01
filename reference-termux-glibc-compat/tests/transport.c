@@ -1,0 +1,108 @@
+#define _GNU_SOURCE
+
+#include <tgcompat/protocol.h>
+#include <tgcompat/sem_store.h>
+#include <tgcompat/transport.h>
+
+#include <errno.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#define CHECK(expression)                                                       \
+    do {                                                                        \
+        if (!(expression)) {                                                    \
+            fprintf(stderr, "CHECK failed at %s:%d: %s\n", __FILE__, __LINE__, \
+                    #expression);                                               \
+            failed = 1;                                                         \
+            goto done;                                                          \
+        }                                                                       \
+    } while (0)
+
+static void *create_thread_socketpair(void *argument)
+{
+    int *sockets = argument;
+    if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets) != 0) {
+        sockets[0] = -1;
+        sockets[1] = -1;
+    }
+    return NULL;
+}
+
+int main(void)
+{
+    int failed = 0;
+    int sockets[2] = {-1, -1};
+    int thread_sockets[2] = {-1, -1};
+    CHECK(socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets) == 0);
+
+    pid_t peer_pid = 0;
+    CHECK(tgc_transport_authenticate(sockets[0], geteuid(), &peer_pid) == 0);
+    CHECK(peer_pid == getpid());
+    CHECK(tgc_transport_authenticate(sockets[0], geteuid() + 1, &peer_pid) ==
+          -EACCES);
+    struct tgc_peer_credentials credentials;
+    CHECK(tgc_transport_get_credentials(sockets[0], geteuid(), &credentials) ==
+          0);
+    CHECK(credentials.pid == getpid() && credentials.uid == geteuid() &&
+          credentials.gid == getegid());
+
+    pthread_t creator;
+    CHECK(pthread_create(&creator, NULL, create_thread_socketpair,
+                         thread_sockets) == 0);
+    CHECK(pthread_join(creator, NULL) == 0);
+    CHECK(thread_sockets[0] >= 0 && thread_sockets[1] >= 0);
+    CHECK(tgc_transport_get_credentials(thread_sockets[0], geteuid(),
+                                        &credentials) == 0);
+    CHECK(credentials.pid == getpid());
+    CHECK(close(thread_sockets[0]) == 0);
+    thread_sockets[0] = -1;
+    CHECK(close(thread_sockets[1]) == 0);
+    thread_sockets[1] = -1;
+
+    struct tgc_protocol_packet sent;
+    memset(&sent, 0, sizeof(sent));
+    sent.header.version = TGC_PROTOCOL_VERSION;
+    sent.header.kind = TGC_PROTOCOL_REQUEST;
+    sent.header.opcode = TGC_OPCODE_SEMGET;
+    sent.header.request_id = 42;
+    sent.header.payload_length = 12;
+    tgc_wire_put_i32(sent.payload, 1234);
+    tgc_wire_put_i32(sent.payload + 4, 2);
+    tgc_wire_put_u32(sent.payload + 8, TGC_IPC_CREAT | 0600U);
+    CHECK(tgc_transport_send(sockets[0], &sent) == 0);
+
+    struct tgc_protocol_packet received;
+    CHECK(tgc_transport_receive(sockets[1], &received) == 0);
+    CHECK(received.header.request_id == 42);
+    CHECK(received.header.payload_length == 12);
+    CHECK(memcmp(received.payload, sent.payload, 12) == 0);
+
+    int closed_socket = sockets[0];
+    sockets[0] = -1;
+    CHECK(close(closed_socket) == 0);
+    CHECK(tgc_transport_receive(sockets[1], &received) == TGC_TRANSPORT_EOF);
+
+done:
+    if (thread_sockets[0] >= 0) {
+        (void)close(thread_sockets[0]);
+    }
+    if (thread_sockets[1] >= 0) {
+        (void)close(thread_sockets[1]);
+    }
+    if (sockets[0] >= 0) {
+        (void)close(sockets[0]);
+    }
+    if (sockets[1] >= 0) {
+        (void)close(sockets[1]);
+    }
+    if (!failed) {
+        puts("transport: PASS");
+    }
+    return failed != 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+}

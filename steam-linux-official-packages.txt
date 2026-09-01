@@ -1,0 +1,7 @@
+glibc
+libva-glibc
+libvdpau-glibc
+libx11-glibc
+libxau-glibc
+libxcb-glibc
+libxdmcp-glibc

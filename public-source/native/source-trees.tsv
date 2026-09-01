@@ -1,0 +1,3 @@
+# directory	deterministic aggregate SHA-256
+# Steamworks headers are intentionally not bundled. Set STEAMWORKS_SDK_DIR.
+# Canonical SDK 1.54 relative-tree SHA-256: 3c2d9ac8041c0b1e5a717ee521fea0db47f95f9d2e60e7eb10f00880f24c8c3e

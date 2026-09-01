@@ -1,0 +1,4 @@
+cache/
+*.tar
+*.tar.zst
+*.tar.zst.sha256

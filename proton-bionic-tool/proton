@@ -1,0 +1,339 @@
+#!/data/data/com.termux/files/usr/glibc/bin/bash
+set -euo pipefail
+
+verb=${1:-}
+if [[ -z $verb ]]; then
+    printf '%s\n' 'proton-bionic-termux: missing compatibility-tool verb' >&2
+    exit 2
+fi
+shift
+
+compat_data=${STEAM_COMPAT_DATA_PATH:-}
+if [[ -z $compat_data || $compat_data != /* ]]; then
+    printf '%s\n' 'proton-bionic-termux: STEAM_COMPAT_DATA_PATH is missing' >&2
+    exit 2
+fi
+
+# Steam probes every registered tool with this helper under compatdata/0.
+# Running Wine for the probe creates a multi-gigabyte throwaway prefix, while
+# the native Steam client already performs its own graphics detection.
+case ${1:-} in
+    */d3ddriverquery.exe|*/d3ddriverquery64.exe)
+        if [[ ${SteamAppId:-${SteamGameId:-0}} == 0 ]]; then
+            exit 1
+        fi
+        ;;
+esac
+
+tool_dir=${BASH_SOURCE[0]%/*}
+tool_dir=$(cd -- "$tool_dir" && pwd -P)
+root=$(cd -- "$tool_dir/.." && pwd -P)
+prefix=${PROTON_BIONIC_PREFIX:-/data/data/com.termux/files/home/.wine}
+log=${PROTON_BIONIC_LOG:-$compat_data/proton-bionic-termux.log}
+wine=${PROTON_BIONIC_WINE:-/data/data/com.termux/files/home/bin/hangover-wine}
+wineserver=${PROTON_BIONIC_WINESERVER:-/data/data/com.termux/files/usr/opt/hangover-wine/bin/wineserver}
+fex_payload=${PROTON_BIONIC_FEX_PAYLOAD:-}
+dxvk=$tool_dir/vendor/dxvk-1.10.3
+vkd3d=$tool_dir/vendor/vkd3d-proton-3.0.1
+component_version=dxvk-1.10.3_vkd3d-proton-3.0.1
+component_flavor=${PROTON_BIONIC_COMPONENT_FLAVOR:-hangover}
+cpu_backend=${PROTON_BIONIC_CPU_BACKEND:-box64}
+component_marker=$prefix/.proton-bionic-$component_flavor-$component_version
+legacycompat=$root/legacycompat
+wine_root=/data/data/com.termux/files/usr/opt/hangover-wine
+lsteamclient_pe=$wine_root/lib/wine/i386-windows/lsteamclient.dll
+steam_stub=$wine_root/lib/wine/i386-windows/steam.exe
+steam_stub_native=${PROTON_BIONIC_STEAM_STUB_NATIVE:-}
+steam_helper='C:\windows\syswow64\steam.exe'
+if [[ -n $steam_stub_native ]]; then
+    steam_helper='C:\windows\system32\steam.exe'
+fi
+# Use the authenticated native Steam session by default. Set this to legacy
+# only as a compatibility fallback for a title that does not need Steamworks.
+steam_bridge=${PROTON_BIONIC_STEAM_BRIDGE:-proxy}
+virtual_steam="$prefix/drive_c/Program Files (x86)/Steam"
+bridge_root=$root/steam-bridge
+bridge_socket=${LSTEAM_BRIDGE_SOCKET:-/data/data/com.termux/files/usr/tmp/lsteambridge.sock}
+bridge_trace=${LSTEAM_BRIDGE_TRACE:-$compat_data/lsteambridge-trace.log}
+
+install -d -m 0700 -- "$compat_data" "$prefix"
+printf '%s verb=%s appid=%s target=%q\n' \
+    "$(date '+%Y-%m-%d %H:%M:%S')" "$verb" \
+    "${SteamAppId:-${SteamGameId:-unknown}}" "${1:-}" >> "$log"
+
+# Steam is glibc while this Wine/FEX stack is native Android Bionic.
+unset LD_PRELOAD LD_LIBRARY_PATH GLIBC_LD_LIBRARY_PATH
+unset TGCOMPAT_LD_SO TGCOMPAT_LIBRARY_PATH TGCOMPAT_EXEC_LD_PRELOAD
+unset TGCOMPAT_EXEC_SHELL TGCOMPAT_EXEC_PATH_FROM TGCOMPAT_EXEC_PATH_TO
+unset VK_LOADER_DRIVERS_SELECT VK_LOADER_DRIVERS_DISABLE
+export LD_LIBRARY_PATH=/data/data/com.termux/files/usr/lib
+export VK_DRIVER_FILES=/data/data/com.termux/files/usr/share/vulkan/icd.d/freedreno_icd.aarch64.json
+export VK_ICD_FILENAMES=$VK_DRIVER_FILES
+export WINEPREFIX=$prefix
+export TERMUX_GAMEPAD_BACKEND=sdl
+export WINEESYNC=${WINEESYNC:-1}
+export WINEDEBUG=${PROTON_BIONIC_WINEDEBUG:--all}
+export WINEDLLOVERRIDES='steam.exe=b;dxgi,d3d8,d3d9,d3d10core,d3d11,d3d12,d3d12core=n,b'
+export DXVK_FILTER_DEVICE_NAME=${DXVK_FILTER_DEVICE_NAME:-Turnip}
+export VKD3D_FILTER_DEVICE_NAME=${VKD3D_FILTER_DEVICE_NAME:-Turnip}
+. "$bridge_root/proton-functions.sh"
+
+[[ -x $wine ]] || {
+    printf 'proton-bionic-termux: Wine launcher is unavailable: %s\n' "$wine" >&2
+    exit 127
+}
+
+# Steam's compatibility-tool API passes the install directory separately.
+# Wine does not switch to it for us, while many games (notably Source) resolve
+# assets such as gameinfo.txt and VPKs relative to their working directory.
+launch_workdir=${STEAM_COMPAT_INSTALL_PATH:-}
+if [[ -z $launch_workdir || ! -d $launch_workdir ]]; then
+    case ${1:-} in
+        /*/*) launch_workdir=${1%/*} ;;
+        *) launch_workdir=$PWD ;;
+    esac
+fi
+
+prepare_launch_args() {
+    launch_args=("$@")
+    local i arg relative_game windows_game steamapps_dir workshop_dir appid
+    local -a filtered_args=()
+    if [[ $steam_bridge == legacy ]]; then
+        for arg in "${launch_args[@]}"; do
+            [[ $arg == -steam ]] || filtered_args+=("$arg")
+        done
+        launch_args=("${filtered_args[@]}")
+    fi
+    install -d -m 0700 -- "$prefix/dosdevices"
+    ln -sfn -- "$launch_workdir" "$prefix/dosdevices/g:"
+    steamapps_dir=${launch_workdir%/common/*}
+    if [[ $steamapps_dir != "$launch_workdir" ]]; then
+        appid=${SteamAppId:-${SteamGameId:-0}}
+        workshop_dir=$steamapps_dir/workshop/content/$appid
+        ln -sfn -- "$workshop_dir" "$prefix/dosdevices/w:"
+    fi
+    for ((i = 0; i + 1 < ${#launch_args[@]}; i++)); do
+        [[ ${launch_args[i]} == -game ]] || continue
+        relative_game=${launch_args[i + 1]}
+        [[ $relative_game != /* && $relative_game != [A-Za-z]:\\* ]] || continue
+        [[ -d $launch_workdir/$relative_game ]] || continue
+        windows_game="G:\\$relative_game"
+        launch_args[i + 1]=$windows_game
+    done
+    printf '%s cwd=%q args=' "$(date '+%Y-%m-%d %H:%M:%S')" "$launch_workdir" >> "$log"
+    printf ' %q' "${launch_args[@]}" >> "$log"
+    printf '\n' >> "$log"
+}
+
+install_components() {
+    [[ -e $component_marker ]] && return 0
+
+    [[ -f $dxvk/x64/dxgi.dll && -f $dxvk/x32/dxgi.dll ]] || {
+        printf '%s\n' 'proton-bionic-termux: verified DXVK payload is missing' >&2
+        return 1
+    }
+    [[ -f $vkd3d/x64/d3d12.dll && -f $vkd3d/x86/d3d12.dll ]] || {
+        printf '%s\n' 'proton-bionic-termux: verified vkd3d-proton payload is missing' >&2
+        return 1
+    }
+
+    if [[ ! -f $prefix/system.reg ||
+          ! -f $prefix/drive_c/windows/system32/kernel32.dll ]]; then
+        "$wine" wineboot -u
+    fi
+    install -d -m 0700 -- "$prefix/drive_c/windows/system32" \
+        "$prefix/drive_c/windows/syswow64"
+    install -m 0600 -- "$dxvk"/x64/*.dll "$prefix/drive_c/windows/system32/"
+    install -m 0600 -- "$dxvk"/x32/*.dll "$prefix/drive_c/windows/syswow64/"
+    install -m 0600 -- "$vkd3d"/x64/*.dll "$prefix/drive_c/windows/system32/"
+    install -m 0600 -- "$vkd3d"/x86/*.dll "$prefix/drive_c/windows/syswow64/"
+    if [[ -n $fex_payload ]]; then
+        [[ -f $fex_payload/libarm64ecfex.dll && -f $fex_payload/libwow64fex.dll ]] || {
+            printf '%s\n' 'proton-bionic-termux: FEX payload is incomplete' >&2
+            return 1
+        }
+        install -m 0600 -- "$fex_payload/libarm64ecfex.dll" \
+            "$fex_payload/libwow64fex.dll" "$prefix/drive_c/windows/system32/"
+    fi
+    printf '%s\n' "$component_version" > "$component_marker"
+    printf '%s components=%s installed\n' \
+        "$(date '+%Y-%m-%d %H:%M:%S')" "$component_version" >> "$log"
+}
+configure_cpu_backend() {
+    local amd64_module x86_module
+    case $cpu_backend in
+        fex)
+            amd64_module=libarm64ecfex.dll
+            x86_module=libwow64fex.dll
+            [[ -f $wine_root/lib/wine/aarch64-windows/$amd64_module &&
+               -f $wine_root/lib/wine/aarch64-windows/$x86_module ]] || {
+                printf '%s\n' 'proton-bionic-termux: installed FEX backend is incomplete' >&2
+                return 1
+            }
+            ;;
+        box64)
+            amd64_module=libarm64ecfex.dll
+            x86_module=wowbox64.dll
+            ;;
+        *)
+            printf 'proton-bionic-termux: unsupported CPU backend: %s\n' "$cpu_backend" >&2
+            return 1
+            ;;
+    esac
+
+    export HODLL=$x86_module
+    export HODLL64=$amd64_module
+    "$wine" reg add 'HKLM\Software\Microsoft\Wow64\amd64' /ve /d "$amd64_module" /f >/dev/null
+    "$wine" reg add 'HKLM\Software\Microsoft\Wow64\x86' /ve /d "$x86_module" /f >/dev/null
+    printf '%s cpu_backend=%s amd64=%s x86=%s\n' \
+        "$(date '+%Y-%m-%d %H:%M:%S')" "$cpu_backend" "$amd64_module" "$x86_module" >> "$log"
+}
+
+
+prepare_steam_compat() {
+    local appid steamclient_source
+    appid=${SteamAppId:-${SteamGameId:-0}}
+    [[ $appid != 0 ]] || return 0
+    steamclient_source=$legacycompat/steamclient.dll
+    if [[ $steam_bridge == legacy && -f $launch_workdir/bin/steamclient.dll ]]; then
+        steamclient_source=$launch_workdir/bin/steamclient.dll
+    fi
+
+    install -d -m 0700 -- "$virtual_steam"
+    # Match Proton's prefix layout even when the builtin steam.exe/lsteamclient
+    # path is active. Steam DRM wrappers still inspect the registered Windows
+    # Steam directory and expect the legacycompat facade to exist there.
+    [[ -f $legacycompat/steamclient.dll &&
+       -f $legacycompat/steamclient64.dll &&
+       -f $legacycompat/Steam.dll &&
+       -f $legacycompat/SteamService.exe ]] || {
+        printf '%s\n' 'proton-bionic-termux: Steam legacycompat payload is missing' >&2
+        return 1
+    }
+    install -m 0600 -- "$steamclient_source" "$virtual_steam/steamclient.dll"
+    install -m 0600 -- "$legacycompat/steamclient64.dll" "$virtual_steam/steamclient64.dll"
+    install -m 0600 -- "$legacycompat/Steam.dll" "$virtual_steam/Steam.dll"
+    install -m 0700 -- "$legacycompat/SteamService.exe" "$virtual_steam/steam.exe"
+    for steam_dep in tier0_s.dll vstdlib_s.dll; do
+        [[ -f $launch_workdir/bin/$steam_dep ]] || continue
+        install -m 0600 -- "$launch_workdir/bin/$steam_dep" "$virtual_steam/$steam_dep"
+    done
+
+    if [[ $steam_bridge == direct || $steam_bridge == proxy ]]; then
+        [[ -f $lsteamclient_pe ]] || {
+            printf '%s\n' 'proton-bionic-termux: Hangover Steam proxy payload is missing' >&2
+            return 1
+        }
+        install -d -m 0700 -- "$prefix/drive_c/windows/syswow64"
+        install -m 0600 -- "$lsteamclient_pe" \
+            "$prefix/drive_c/windows/syswow64/lsteamclient.dll"
+        if [[ -n $steam_stub_native ]]; then
+            [[ -f $steam_stub_native ]] || {
+                printf '%s\n' 'proton-bionic-termux: native Steam helper is missing' >&2
+                return 1
+            }
+            install -d -m 0700 -- "$prefix/drive_c/windows/system32"
+            install -m 0700 -- "$steam_stub_native" \
+                "$prefix/drive_c/windows/system32/steam.exe"
+        else
+            [[ -f $steam_stub ]] || {
+                printf '%s\n' 'proton-bionic-termux: 32-bit Steam helper is missing' >&2
+                return 1
+            }
+            install -m 0700 -- "$steam_stub" \
+                "$prefix/drive_c/windows/syswow64/steam.exe"
+        fi
+    fi
+
+    "$wine" reg add 'HKCU\Software\Valve\Steam' /v SteamPath /t REG_SZ \
+        /d 'C:\Program Files (x86)\Steam' /f >/dev/null
+    "$wine" reg add 'HKCU\Software\Valve\Steam' /v SteamExe /t REG_SZ \
+        /d 'C:\Program Files (x86)\Steam\steam.exe' /f >/dev/null
+    "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v PID \
+        /t REG_DWORD /d 0xfffe /f >/dev/null
+    "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v SteamPath \
+        /t REG_SZ /d 'C:\Program Files (x86)\Steam' /f >/dev/null
+    "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v SteamClientDll \
+        /t REG_SZ /d 'C:\Program Files (x86)\Steam\steamclient.dll' /f >/dev/null
+    if [[ $steam_bridge == legacy ]]; then
+        "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v SteamClientDll64 \
+            /t REG_SZ /d 'C:\Program Files (x86)\Steam\steamclient64.dll' /f >/dev/null
+    fi
+}
+
+case $verb in
+    run|runinprefix)
+        start_steam_bridge
+        # `run` is also used by Steam's short-lived install-script evaluator.
+        # Keep the bridge alive while Wine runs, then release it so Steam does
+        # not continue tracking the persistent bridge as the launched app.
+        trap stop_steam_bridge EXIT
+        install_components
+        configure_cpu_backend
+        prepare_steam_compat
+        cd -- "$launch_workdir"
+        prepare_launch_args "$@"
+        set +e
+        if [[ $steam_bridge == direct || $steam_bridge == proxy ]]; then
+            "$wine" "$steam_helper" "${launch_args[@]}"
+        else
+            "$wine" "${launch_args[@]}"
+        fi
+        status=$?
+        set -e
+        trap - EXIT
+        stop_steam_bridge
+        exit "$status"
+        ;;
+    waitforexitandrun)
+        start_steam_bridge
+        "$wineserver" -k >/dev/null 2>&1 || true
+        "$wineserver" -w >/dev/null 2>&1 || true
+        install_components
+        configure_cpu_backend
+        prepare_steam_compat
+        cd -- "$launch_workdir"
+        prepare_launch_args "$@"
+        "$wineserver" -k >/dev/null 2>&1 || true
+        "$wineserver" -w >/dev/null 2>&1 || true
+        configure_cpu_backend
+        if [[ $steam_bridge == direct || $steam_bridge == proxy ]]; then
+            "$wine" "$steam_helper" "${launch_args[@]}" >> "$log" 2>&1 &
+        else
+            "$wine" "${launch_args[@]}" >> "$log" 2>&1 &
+        fi
+        game_pid=$!
+        stopped=0
+        stop_session() {
+            stopped=1
+            "$wineserver" -k >/dev/null 2>&1 || true
+            kill -TERM "$game_pid" 2>/dev/null || true
+        }
+        trap stop_session TERM INT HUP
+        set +e
+        wait "$game_pid"
+        status=$?
+        set -e
+        printf '%s game_pid=%s status=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" \
+            "$game_pid" "$status" >> "$log"
+        trap - TERM INT HUP
+        stop_steam_bridge
+        "$wineserver" -k >/dev/null 2>&1 || true
+        "$wineserver" -w >/dev/null 2>&1 || true
+        ((stopped)) && exit 0
+        exit "$status"
+        ;;
+    getcompatpath)
+        exec "$wine" winepath -w "$@"
+        ;;
+    getnativepath)
+        exec "$wine" winepath -u "$@"
+        ;;
+    destroyprefix)
+        exit 0
+        ;;
+    *)
+        printf 'proton-bionic-termux: unsupported verb: %s\n' "$verb" >&2
+        exit 2
+        ;;
+esac

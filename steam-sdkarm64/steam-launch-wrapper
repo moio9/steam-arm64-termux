@@ -1,0 +1,58 @@
+#!/data/data/com.termux/files/home/Downloads/bins_linuxarm64_linuxarm64/steam-sdkarm64/bash
+set -euo pipefail
+unset LD_PRELOAD LD_LIBRARY_PATH
+
+# Steam normally inserts its Linux reaper between this wrapper and the
+# compatibility tool.  Hangover runs on Termux/Bionic, so that extra glibc
+# process only leaks incompatible loader state across the boundary.
+[[ ${1:-} == -- ]] && shift
+if [[ ${1:-} == */reaper ]]; then
+  shift
+  while (($#)) && [[ $1 != -- ]]; do
+    if [[ $1 == AppId=* ]]; then
+      export SteamAppId=${1#AppId=}
+      export SteamGameId=${1#AppId=}
+    fi
+    shift
+  done
+  [[ ${1:-} == -- ]] && shift
+fi
+
+if [[ -z ${STEAM_COMPAT_DATA_PATH:-} && ${SteamAppId:-} =~ ^[0-9]+$ ]]; then
+  wrapper_dir=${BASH_SOURCE[0]%/*}
+  wrapper_dir=$(cd -- "$wrapper_dir" && pwd -P)
+  STEAM_COMPAT_DATA_PATH="${wrapper_dir%/*}/steam-home/Steam/steamapps/compatdata/$SteamAppId"
+  export STEAM_COMPAT_DATA_PATH
+fi
+
+if [[ -n ${STEAM_COMPAT_DATA_PATH:-} ]]; then
+  install -d -m 0700 -- "$STEAM_COMPAT_DATA_PATH"
+  printf '%s appid=%s command=' "$(date '+%Y-%m-%d %H:%M:%S')" \
+    "${SteamAppId:-${SteamGameId:-unknown}}" \
+    >> "$STEAM_COMPAT_DATA_PATH/steam-launch-wrapper-termux.log"
+  printf '%q ' "$@" >> "$STEAM_COMPAT_DATA_PATH/steam-launch-wrapper-termux.log"
+  printf '\n' >> "$STEAM_COMPAT_DATA_PATH/steam-launch-wrapper-termux.log"
+fi
+
+# Run direct x86_64 and i386 Linux game entry points with the Termux glibc
+# build of Box64 (which includes Box32); ARM64 programs and our Hangover
+# compatibility tool continue through unchanged.
+BOX64_GLIBC=/data/data/com.termux/files/usr/glibc
+BOX64_BIN=$BOX64_GLIBC/bin/box64
+BOX64_LOADER=$BOX64_GLIBC/lib/ld-linux-aarch64.so.1
+FILE_BIN=/data/data/com.termux/files/usr/bin/file
+
+if [[ -f ${1:-} && -x ${1:-} && -x $BOX64_BIN && -x $BOX64_LOADER ]]; then
+  executable_type=$($FILE_BIN -Lb -- "$1" 2>/dev/null || true)
+  if [[ $executable_type == *ELF\ 64-bit*x86-64* || \
+        $executable_type == *ELF\ 32-bit*Intel\ i386* ]]; then
+    if [[ -n ${STEAM_COMPAT_DATA_PATH:-} ]]; then
+      printf 'executor=box64\n' \
+        >> "$STEAM_COMPAT_DATA_PATH/steam-launch-wrapper-termux.log"
+    fi
+    exec "$BOX64_LOADER" --library-path "$BOX64_GLIBC/lib" \
+      "$BOX64_BIN" "$@"
+  fi
+fi
+
+exec "$@"

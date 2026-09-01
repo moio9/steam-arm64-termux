@@ -1,0 +1,6 @@
+# role	Termux package	canonical version	command	ABI
+android-c	clang	21.1.8-3	clang	Bionic/Android API 24
+glibc-c	gcc-glibc	14.2.1-1	aarch64-linux-gnu-gcc	GNU/Linux AArch64
+glibc-cxx	gcc-glibc	14.2.1-1	aarch64-linux-gnu-g++	GNU/Linux AArch64
+glibc-launcher	glibc-runner	2.0-3	glibc-runner	Android host launcher
+

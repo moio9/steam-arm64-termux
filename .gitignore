@@ -1,0 +1,64 @@
+# Runtime trees and downloads created by the bootstrap.
+/valve-client/
+/steam-home/
+/download-cache/
+/steam-linux-libs/
+/tgcompat-glibc/
+/steamrtarm64/
+/lsteamclient-bionic-build/
+/proton-lsteamclient-src/
+/proton-bionic-tool/vendor/
+
+# Local build and source-package work areas.
+/public-native-build/
+/public-release/
+/public-source/**/cache/
+/public-source/**/output/
+/public-source/**/work/
+/reference-termux-glibc-compat/build/
+
+# Generated native code, archives and packages must stay in release assets.
+*.a
+*.apk
+*.bin
+*.deb
+*.dll
+*.dylib
+*.exe
+*.gz
+*.jar
+*.o
+*.py[co]
+*.rpm
+*.so
+*.so.*
+*.sqsh
+*.tar
+*.tar.*
+*.xz
+*.zst
+*.zip
+
+# Logs, traces, editor leftovers and test output.
+*.log
+*.orig
+*.rej
+*.strace
+*.swp
+*~
+__pycache__/
+.cache/
+.pytest_cache/
+
+# Credentials and local account state.
+.env
+.netrc
+.npmrc
+.pypirc
+.ssh/
+id_ed25519
+id_rsa
+loginusers.vdf
+registry.vdf
+ssfn*
+

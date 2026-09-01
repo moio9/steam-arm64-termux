@@ -1,0 +1,312 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <tgcompat/transport.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+static int validate_runtime_directory(const char *path, uid_t expected_uid)
+{
+    struct stat status;
+    if (lstat(path, &status) != 0) {
+        return -errno;
+    }
+    if (!S_ISDIR(status.st_mode)) {
+        return -ENOTDIR;
+    }
+    if (status.st_uid != expected_uid || (status.st_mode & 0777U) != 0700U) {
+        return -EPERM;
+    }
+    return 0;
+}
+
+static int runtime_directory(const char *socket_path, char output[PATH_MAX])
+{
+    if (socket_path == NULL || socket_path[0] != '/') {
+        return -EINVAL;
+    }
+    size_t length = strlen(socket_path);
+    if (length == 0 || length >= PATH_MAX ||
+        length >= sizeof(((struct sockaddr_un *)0)->sun_path)) {
+        return -ENAMETOOLONG;
+    }
+
+    const char *separator = strrchr(socket_path, '/');
+    if (separator == NULL || separator == socket_path || separator[1] == '\0') {
+        return -EINVAL;
+    }
+    size_t directory_length = (size_t)(separator - socket_path);
+    memcpy(output, socket_path, directory_length);
+    output[directory_length] = '\0';
+    return 0;
+}
+
+int tgc_transport_listen(const char *socket_path, uid_t expected_uid)
+{
+    char directory[PATH_MAX];
+    int result = runtime_directory(socket_path, directory);
+    if (result != 0) {
+        return result;
+    }
+
+    if (mkdir(directory, 0700) != 0 && errno != EEXIST) {
+        return -errno;
+    }
+    result = validate_runtime_directory(directory, expected_uid);
+    if (result != 0) {
+        return result;
+    }
+
+    struct stat existing;
+    if (lstat(socket_path, &existing) == 0) {
+        return -EADDRINUSE;
+    }
+    if (errno != ENOENT) {
+        return -errno;
+    }
+
+    int socket_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (socket_fd < 0) {
+        return -errno;
+    }
+
+    struct sockaddr_un address;
+    memset(&address, 0, sizeof(address));
+    address.sun_family = AF_UNIX;
+    size_t path_length = strlen(socket_path);
+    memcpy(address.sun_path, socket_path, path_length + 1);
+
+    mode_t old_mask = umask(0077);
+    int bind_result = bind(socket_fd, (const struct sockaddr *)&address,
+                           (socklen_t)(offsetof(struct sockaddr_un, sun_path) +
+                                       path_length + 1));
+    int bind_errno = errno;
+    (void)umask(old_mask);
+    if (bind_result != 0) {
+        (void)close(socket_fd);
+        return -bind_errno;
+    }
+
+    if (chmod(socket_path, 0600) != 0) {
+        int saved_errno = errno;
+        (void)close(socket_fd);
+        (void)unlink(socket_path);
+        return -saved_errno;
+    }
+
+    struct stat created;
+    if (lstat(socket_path, &created) != 0) {
+        int saved_errno = errno;
+        (void)close(socket_fd);
+        (void)unlink(socket_path);
+        return -saved_errno;
+    }
+    if (!S_ISSOCK(created.st_mode) || created.st_uid != expected_uid ||
+        (created.st_mode & 0777U) != 0600U) {
+        (void)close(socket_fd);
+        (void)unlink(socket_path);
+        return -EPERM;
+    }
+    if (listen(socket_fd, 16) != 0) {
+        int saved_errno = errno;
+        (void)close(socket_fd);
+        (void)unlink(socket_path);
+        return -saved_errno;
+    }
+    return socket_fd;
+}
+
+int tgc_transport_connect(const char *socket_path, uid_t expected_uid)
+{
+    char directory[PATH_MAX];
+    int result = runtime_directory(socket_path, directory);
+    if (result != 0) {
+        return result;
+    }
+    result = validate_runtime_directory(directory, expected_uid);
+    if (result != 0) {
+        return result;
+    }
+
+    struct stat socket_status;
+    if (lstat(socket_path, &socket_status) != 0) {
+        return -errno;
+    }
+    if (!S_ISSOCK(socket_status.st_mode) ||
+        socket_status.st_uid != expected_uid ||
+        (socket_status.st_mode & 0777U) != 0600U) {
+        return -EPERM;
+    }
+
+    int socket_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (socket_fd < 0) {
+        return -errno;
+    }
+    struct sockaddr_un address;
+    memset(&address, 0, sizeof(address));
+    address.sun_family = AF_UNIX;
+    size_t path_length = strlen(socket_path);
+    memcpy(address.sun_path, socket_path, path_length + 1);
+    if (connect(socket_fd, (const struct sockaddr *)&address,
+                (socklen_t)(offsetof(struct sockaddr_un, sun_path) +
+                            path_length + 1)) != 0) {
+        int saved_errno = errno;
+        (void)close(socket_fd);
+        return -saved_errno;
+    }
+    struct tgc_peer_credentials credentials = {0};
+    result = tgc_transport_get_credentials(socket_fd, expected_uid,
+                                           &credentials);
+    if (result != 0) {
+        (void)close(socket_fd);
+        return result;
+    }
+    return socket_fd;
+}
+
+int tgc_transport_authenticate(int socket_fd, uid_t expected_uid,
+                               pid_t *peer_pid)
+{
+    if (socket_fd < 0 || peer_pid == NULL) {
+        return -EINVAL;
+    }
+    struct tgc_peer_credentials credentials = {0};
+    int result = tgc_transport_get_credentials(socket_fd, expected_uid,
+                                               &credentials);
+    if (result != 0) {
+        return result;
+    }
+    *peer_pid = credentials.pid;
+    return 0;
+}
+
+int tgc_transport_get_credentials(int socket_fd, uid_t expected_uid,
+                                  struct tgc_peer_credentials *credentials)
+{
+    if (socket_fd < 0 || credentials == NULL) {
+        return -EINVAL;
+    }
+    struct ucred native_credentials;
+    socklen_t length = sizeof(native_credentials);
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_PEERCRED, &native_credentials,
+                   &length) !=
+        0) {
+        return -errno;
+    }
+    if (length != sizeof(native_credentials) || native_credentials.pid <= 0 ||
+        native_credentials.uid != expected_uid) {
+        return -EACCES;
+    }
+    *credentials = (struct tgc_peer_credentials){
+        .pid = native_credentials.pid,
+        .uid = native_credentials.uid,
+        .gid = native_credentials.gid,
+    };
+    return 0;
+}
+
+static int receive_exact(int socket_fd, uint8_t *output, size_t length,
+                         int clean_eof_allowed, int restart_on_eintr)
+{
+    size_t offset = 0;
+    while (offset < length) {
+        ssize_t received = recv(socket_fd, output + offset, length - offset, 0);
+        if (received > 0) {
+            offset += (size_t)received;
+            continue;
+        }
+        if (received == 0) {
+            return clean_eof_allowed != 0 && offset == 0 ? TGC_TRANSPORT_EOF
+                                                         : -EPROTO;
+        }
+        if (errno == EINTR) {
+            if (restart_on_eintr != 0) {
+                continue;
+            }
+            return -EINTR;
+        }
+        return -errno;
+    }
+    return 0;
+}
+
+static int receive_packet(int socket_fd, struct tgc_protocol_packet *packet,
+                          int restart_on_eintr)
+{
+    if (socket_fd < 0 || packet == NULL) {
+        return -EINVAL;
+    }
+    uint8_t wire_header[TGC_PROTOCOL_HEADER_SIZE];
+    int result = receive_exact(socket_fd, wire_header, sizeof(wire_header), 1,
+                               restart_on_eintr);
+    if (result != 0) {
+        return result;
+    }
+
+    result = tgc_protocol_decode_header(wire_header, &packet->header);
+    if (result != 0) {
+        return result;
+    }
+    return receive_exact(socket_fd, packet->payload,
+                         packet->header.payload_length, 0, restart_on_eintr);
+}
+
+int tgc_transport_receive(int socket_fd, struct tgc_protocol_packet *packet)
+{
+    return receive_packet(socket_fd, packet, 1);
+}
+
+int tgc_transport_receive_interruptible(
+    int socket_fd, struct tgc_protocol_packet *packet)
+{
+    return receive_packet(socket_fd, packet, 0);
+}
+
+static int send_exact(int socket_fd, const uint8_t *input, size_t length)
+{
+    size_t offset = 0;
+    while (offset < length) {
+        ssize_t sent = send(socket_fd, input + offset, length - offset,
+                            MSG_NOSIGNAL);
+        if (sent > 0) {
+            offset += (size_t)sent;
+            continue;
+        }
+        if (sent == 0) {
+            return -EPIPE;
+        }
+        if (errno != EINTR) {
+            return -errno;
+        }
+    }
+    return 0;
+}
+
+int tgc_transport_send(int socket_fd,
+                       const struct tgc_protocol_packet *packet)
+{
+    if (socket_fd < 0 || packet == NULL) {
+        return -EINVAL;
+    }
+    uint8_t wire[TGC_PROTOCOL_HEADER_SIZE + TGC_PROTOCOL_MAX_PAYLOAD];
+    int result = tgc_protocol_encode_header(wire, &packet->header);
+    if (result != 0) {
+        return result;
+    }
+    if (packet->header.payload_length > 0) {
+        memcpy(wire + TGC_PROTOCOL_HEADER_SIZE, packet->payload,
+               packet->header.payload_length);
+    }
+    return send_exact(socket_fd, wire, TGC_PROTOCOL_HEADER_SIZE +
+                                           packet->header.payload_length);
+}

@@ -1,0 +1,25 @@
+# artifact	state	ABI	recipe	source set	current SHA-256
+steamrtarm64/steam-cert-shim.so	build	glibc-aarch64	build-public-native.sh	steam-cert-*-shim.c	de635670ace140051c45aa087b9009bd7105cf2f09ea3a8488b7429bc532f929
+steamrtarm64/steam-dlmopen-shim.so	build	glibc-aarch64	build-public-native.sh	steam-dlmopen-shim-v2.c	d2c00259a57bb7e6fb3bfcad255988153639d28f091079480e9d480862403c6c
+steamrtarm64/steam-helper-shim.so	build	glibc-aarch64	build-public-native.sh	steam-helper-shim.c	070b79226d1cbde1fbe51e7705659bb4c390dc7c0c24d75b108e0c609e2ad05f
+steamrtarm64/steam-module-shim.so	build	glibc-aarch64	build-public-native.sh	steam-module-shim.c	d52bc04a83dc4407bf9a431babaae336c5003a6a58aab38073ee51764c935351
+steamrtarm64/steam-open-shim.so	build	glibc-aarch64	build-public-native.sh	steam-open-shim.c	ec8701f050d1c4ef57613b30d732a6d842244b4215b37e9f88d15b7ede36f2fb
+steamrtarm64/steam-sysv-shim.so	build	glibc-aarch64	build-public-native.sh	steam-sysv-shim.c	6e8ad1cc25fc75e1c66532fbc14d80119ad5b5aa8266b8cae39d201ab3447fa4
+steamrtarm64/steam-x11-main-shim.so	build	glibc-aarch64	build-public-native.sh	steam-x11-main-shim.c	26d4edd83230a09d00341dcbc8fd5789ab8c6af9e881e414840d2f61e23c2922
+steam-legacy-tmp-shim.so	build	glibc-aarch64	build-public-native.sh	steam-path-shim.c	016bb4488367c17df8792c003169a5ec5d46d9cfb23be341e207813197b51838
+steam-proc-self-shim.so	build	glibc-aarch64	build-public-native.sh	steam-proc-self-shim.c	83a57bd45106e2c8878bfbe1b4d54a6e1ca9deccf6a05986360cd2210e2686dd
+steam-unix-socket-shim.so	build	glibc-aarch64	build-public-native.sh	steam-unix-socket-shim.c	69744bac0f43fcfbc50f935844623b3a6915ec1268bf6f99e4bb27ea9c04605e
+steam-native-lsof	build	glibc-aarch64	build-public-native.sh	reference-steamclienttermux/diagnostics/native-lsof.c	798c75377f8349b435cd3128e7160e752d5822a2ffab3c2c02bc93878bc1a0f6
+steam-bridge/lsteambridge-client	build	bionic-aarch64	build-public-native.sh	steam-bridge/client.c+protocol.h	148933a5e5da6c0baf5583f93dfe6a9a02c8ee84fdc4a717fc570ef7e240644f
+steam-bridge/lsteambridge-server	build	glibc-aarch64	build-public-native.sh	steam-bridge/server.cpp+native-inc+$STEAMWORKS_SDK_DIR	c83ac7f5329a411448d245cf0e41962967ce4703117979544afe43b45bbcdb8b
+lsteamclient-bionic-build/lsteamclient.so	delegated	bionic-aarch64	public-source/lsteamclient/build-lsteamclient-public.sh	public-source/lsteamclient prepared source	-
+reference-termux-glibc-compat/build/libtgcompat-exec.so	delegated	glibc-aarch64	reference-termux-glibc-compat/Makefile	reference-termux-glibc-compat/src	73cfc2fcfe2bef852e682a8a3345fb823d244e89008c2d4fc3b2bd1c56b656de
+reference-termux-glibc-compat/build/libtgcompat-robust.so	delegated	glibc-aarch64	reference-termux-glibc-compat/Makefile	reference-termux-glibc-compat/src	31b47bfc9d86056428d032529723b8c7b446669c7d113dfb04fb2995d47c5ec5
+reference-termux-glibc-compat/build/libtgcompat-android-root.so	delegated	glibc-aarch64	reference-termux-glibc-compat/Makefile	reference-termux-glibc-compat/src	fa4e94165257bb4027fc497023f39238ecb63a09581ebba35ce708338542c0f0
+reference-termux-glibc-compat/build/libtgcompat-mprotect.so	delegated	glibc-aarch64	reference-termux-glibc-compat/Makefile	reference-termux-glibc-compat/src	e12d25a109641616cd0d629cc2bc3a9801d3bcc9850eebc3702aa23322e81185
+reference-termux-glibc-compat/build/libtgcompat-raknet-recv.so	delegated	glibc-aarch64	reference-termux-glibc-compat/Makefile	reference-termux-glibc-compat/src	e4901f3f1702d69ac2458bf8b1a683d8d2826d49cc50876dfc4849b4089c00b0
+reference-termux-glibc-compat/build/tgcompatd	delegated	bionic-aarch64	reference-termux-glibc-compat/Makefile	reference-termux-glibc-compat/src	2e500748b3ef78a32629995e30c3444a5bb33917a6a10ba3dec4fc3444162531
+tgcompat-glibc/current	external	glibc-aarch64	glibc-packages CI	glibc source+Termux patches	-
+steam-native-tmp-shim.so	excluded	glibc-aarch64	reference diagnostic only	reference-steamclienttermux/diagnostics/native-tmp-shim.c	ee07a1f1aca67873a3fd1c65c0fd72952945269ae3101d3fd8d063a626c6359b
+steam-x11-connect-shim.so	excluded	glibc-aarch64	obsolete experiment	steam-x11-connect-shim.c	47ac858f83b3a6dd4416b75db78ca46c3aca94a8ddc8115e0c92577ca3f086b5
+steam-x11-main-shim.so	excluded	glibc-aarch64	duplicate staging copy	steam-x11-main-shim.c	26d4edd83230a09d00341dcbc8fd5789ab8c6af9e881e414840d2f61e23c2922
