@@ -1,0 +1,10 @@
+Origin: Steam ARM64 for Termux
+Label: Steam ARM64 for Termux
+Suite: stable
+Codename: stable
+Architectures: aarch64
+Components: main
+Description: Native ARM64 Steam packages for Termux
+SHA256:
+ 485d45b4b3d19d827f04d983a42a577dc706a1ecdf32e5fd325d628e0031ee20              646 main/binary-aarch64/Packages
+ c795bbe2bdcc7f54322935bcf235918b4e2468c0b8935c32078b2888d78722d5              450 main/binary-aarch64/Packages.gz
