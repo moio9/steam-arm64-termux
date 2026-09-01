@@ -81,6 +81,7 @@ files=(
     'licenses/LGPL-2.1.txt|licenses/LGPL-2.1.txt|0644'
     'public-source/repository.gitattributes|.gitattributes|0644'
     'public-source/repository.gitignore|.gitignore|0644'
+    '.github/workflows/glibc-runtime.yml|.github/workflows/glibc-runtime.yml|0644'
 
     'bootstrap-public-steam.sh|bootstrap-public-steam.sh|0755'
     'build-public-native.sh|build-public-native.sh|0755'

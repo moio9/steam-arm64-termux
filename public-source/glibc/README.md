@@ -23,6 +23,18 @@ No source is fetched by `--check`:
 ./make-glibc-source-package.sh --check
 ```
 
+The public repository also provides the manually dispatched GitHub Actions
+workflow `.github/workflows/glibc-runtime.yml`. It checks out both packaging
+repositories at the commits and tree objects recorded in `source-lock.env`,
+uses the locked Termux builder image, rebuilds the AArch64 package, validates
+its Debian metadata, and uploads the result with a SHA-256/provenance record.
+The workflow labels its output as a rebuild candidate: it does not publish a
+release, and the candidate still has to pass the tgcompat probes on Android.
+
+Because the historical CI consumed package indexes that were not immutable, a
+new build is not assumed to be byte-identical. Manual dispatch offers an
+optional `require_historical_hash` gate when exact reproduction is desired.
+
 Fetching is an explicit maintainer action. It verifies the upstream glibc
 archive hash and every Git commit/tree identity before caching anything:
 

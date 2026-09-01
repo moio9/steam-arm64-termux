@@ -1,4 +1,5 @@
-2445efc64335a844dc8e918dc3ad2b1152b12a8ad22b1902fc1d36af5612d034  ./.gitattributes
+1c6872bbc9827fa65346065be904262355bcbee113928ba78c61b9669ce71ed1  ./.gitattributes
+47df35332a0a882f5aab72f32e81b27bf0fd4e2b4e45e847dcbbc31149886085  ./.github/workflows/glibc-runtime.yml
 2ab02c49ca66fcb8113f189eb4398a882acbfc151f84e0253671a11e40b129d7  ./.gitignore
 6265866f07ef9fb13c873b03992016bb995ee65f08901667ace9504bd90d8956  ./CONTRIBUTING.md
 573b36f92c1a0cd5c64fa8df92fd2436d5516ac62cfbfc2f96fe2ad4ea1e1fb4  ./LICENSE
@@ -18,15 +19,15 @@ dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551  ./licenses/LGP
 a9fb41686030ea9c6bf6a793a7e93ead6f1e03ebff25387ab530ce5b56d0ebf2  ./make-glibc-source-package.sh
 071bf1206a66f163aed9f72ad5bb020ae5a5b7accb472d376e976f461b9f3035  ./make-public-package.sh
 c06ed763b92e06db5f24bb72407c48efbc5c1046d9a471e5b474dfe810f7311d  ./make-public-release.sh
-646d5fec5e92ae9483a4f96cc59fc9306b44dceff92d0eca0f1cc124416951bc  ./make-public-source-tree.sh
+f343a3d291c8d3953cc6a6a6555f027d5531cb85d2e78c18925e612e9679493e  ./make-public-source-tree.sh
 c7cfcf52d7100c0c35c9caca2109a98fdd16265ca8b2acfc6082898375fbc06d  ./proton-bionic-tool/COMPONENTS.md
 64d1fe3f0e221db8783bf06e91c02a2fdd7ff36e814daa70f52a9da096313c45  ./proton-bionic-tool/compatibilitytool.vdf
 dd1abc45fc02c08f2c678c46c785060c462b300a569b8d0031faf545950a85d2  ./proton-bionic-tool/proton
 0784ca4d4e1f044de45a87c8183614aa70ac0a5569c5c238d526db04ce35b806  ./proton-bionic-tool/toolmanifest.vdf
 b7a955f7ce60e9476b4f5aae98fada2789ba32d737c94e88dc466fd7395d522e  ./public-source/glibc/.gitignore
 ef71b0f4cb5ce2ab1b6a91a95773db8c2c59f001ac542de744759d5b4f6c6a44  ./public-source/glibc/BUILD-PROVENANCE.md
-2b58f3890bfa9a06786144fd737c4485c3ce44d0dd6c87c90d0df93ddd7473fd  ./public-source/glibc/README.md
-316619f4b03a09e6a2acc45977e92a844beafbd05ac027bca031d60567f7cbd7  ./public-source/glibc/REBUILD.md
+e917a90f0b82cbad8ada6e07ea60139a24cbd7ca386d58b026d51b6e0b6f3c7a  ./public-source/glibc/README.md
+e8ab1d8b992769ad66afbbaf707687c275407e1153925b6f72d9dff1f7339d25  ./public-source/glibc/REBUILD.md
 03fd97760b4cbc794777a2fe7cba299d2e809218f1260ba70b3aef120e3b7c89  ./public-source/glibc/rebuild-glibc.sh
 eea8e03ca70f5117a7af4dc83121f98dcd2b42f5776263865ebcb82d6591b145  ./public-source/glibc/source-lock.env
 b6ff2474532fb0d23696e4e7095b9d9f5ae1f44405ee0c53024ccc30448e575f  ./public-source/lsteamclient/README.md

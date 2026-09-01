@@ -43,3 +43,9 @@ sha256:   b8868b0a4cee25ebad811c4cb5ae7f5ab8c4091835d7fc8f9775e2fd9d497c3f
 The historical hash proves which binary this source accompanies. A rebuild is
 not promised to be byte-identical because the original workflow consumed live
 package indexes and an unpinned GitHub runner image; see `BUILD-PROVENANCE.md`.
+
+For a hosted rebuild, manually dispatch `Rebuild patched glibc runtime` in the
+project's GitHub Actions page. That workflow pins the source commits, verifies
+their Git tree identities, and pulls the recorded builder image by digest. Its
+artifact is deliberately a candidate rather than a release: validate it with
+the on-device scripts in `reference-termux-glibc-compat` before packaging it.

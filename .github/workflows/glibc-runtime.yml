@@ -1,0 +1,168 @@
+name: Rebuild patched glibc runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      require_historical_hash:
+        description: Fail unless the rebuild matches the historical release binary byte-for-byte
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: glibc-runtime-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rebuild-aarch64:
+    name: Rebuild glibc 2.44 + tgcompat (aarch64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out project source
+        uses: actions/checkout@v4
+
+      - name: Validate locked build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          . public-source/glibc/source-lock.env
+          [[ "$GLIBC_VERSION" == 2.44 ]]
+          [[ "$GLIBC_PACKAGES_FINAL_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$GLIBC_PACKAGES_FINAL_TREE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$TERMUX_PACKAGES_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$TERMUX_PACKAGES_TREE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CI_BUILD_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$BINARY_PACKAGE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          bash -n public-source/glibc/rebuild-glibc.sh
+          sha256sum -c public-source/native/source-lock.sha256
+
+      - name: Check out pinned package-builder sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          . public-source/glibc/source-lock.env
+
+          clone_locked() {
+            local repository=$1 commit=$2 tree=$3 destination=$4
+            git init --quiet "$destination"
+            git -C "$destination" remote add origin "$repository"
+            git -C "$destination" fetch --quiet --depth=1 origin "$commit"
+            git -C "$destination" checkout --quiet --detach FETCH_HEAD
+            [[ $(git -C "$destination" rev-parse HEAD) == "$commit" ]]
+            [[ $(git -C "$destination" rev-parse 'HEAD^{tree}') == "$tree" ]]
+          }
+
+          mkdir -p build-inputs
+          clone_locked "$GLIBC_PACKAGES_REPOSITORY" \
+            "$GLIBC_PACKAGES_FINAL_COMMIT" "$GLIBC_PACKAGES_FINAL_TREE" \
+            build-inputs/glibc-packages
+          clone_locked "$TERMUX_PACKAGES_REPOSITORY" \
+            "$TERMUX_PACKAGES_COMMIT" "$TERMUX_PACKAGES_TREE" \
+            build-inputs/termux-packages
+
+          for input in build-package.sh clean.sh packages x11-packages \
+              root-packages scripts ndk-patches; do
+            cp -a "build-inputs/termux-packages/$input" \
+              "build-inputs/glibc-packages/$input"
+          done
+
+      - name: Enable AArch64 execution for the Termux builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            binfmt-support qemu-user qemu-user-static
+          sudo update-binfmts --enable qemu-aarch64
+
+      - name: Pull the locked Termux builder image
+        shell: bash
+        run: |
+          set -euo pipefail
+          . public-source/glibc/source-lock.env
+          image=ghcr.io/termux/package-builder-cgct
+          docker pull "$image@$CI_BUILD_IMAGE_DIGEST"
+          docker tag "$image@$CI_BUILD_IMAGE_DIGEST" "$image:locked"
+
+      - name: Build the patched AArch64 glibc package
+        shell: bash
+        working-directory: build-inputs/glibc-packages
+        run: |
+          set -euo pipefail
+          TERMUX_BUILDER_IMAGE_NAME=ghcr.io/termux/package-builder-cgct:locked \
+            ./scripts/run-docker.sh ./build-package.sh -I -a aarch64 \
+              --library glibc glibc
+
+      - name: Validate and describe the rebuilt package
+        id: package
+        shell: bash
+        env:
+          REQUIRE_HISTORICAL_HASH: ${{ inputs.require_historical_hash }}
+        run: |
+          set -euo pipefail
+          . public-source/glibc/source-lock.env
+          mapfile -d '' packages < <(
+            find build-inputs/glibc-packages/output -type f \
+              -name "$BINARY_PACKAGE_FILENAME" -print0
+          )
+          [[ ${#packages[@]} -eq 1 ]]
+          package=${packages[0]}
+          [[ $(dpkg-deb -f "$package" Package) == "$BINARY_PACKAGE_NAME" ]]
+          [[ $(dpkg-deb -f "$package" Version) == "$BINARY_PACKAGE_VERSION" ]]
+          [[ $(dpkg-deb -f "$package" Architecture) == "$BINARY_PACKAGE_ARCHITECTURE" ]]
+
+          actual_sha=$(sha256sum "$package" | cut -d' ' -f1)
+          historical_match=no
+          [[ $actual_sha != "$BINARY_PACKAGE_SHA256" ]] || historical_match=yes
+          if [[ "$REQUIRE_HISTORICAL_HASH" == true && $historical_match != yes ]]; then
+            printf 'Rebuild hash %s does not match historical hash %s\n' \
+              "$actual_sha" "$BINARY_PACKAGE_SHA256" >&2
+            exit 1
+          fi
+
+          mkdir -p artifact
+          install -m 0644 "$package" "artifact/$BINARY_PACKAGE_FILENAME"
+          (
+            cd artifact
+            sha256sum "$BINARY_PACKAGE_FILENAME" > SHA256SUMS
+          )
+          cat > artifact/BUILD-PROVENANCE.txt <<EOF
+          Project commit: $GITHUB_SHA
+          glibc-packages commit: $GLIBC_PACKAGES_FINAL_COMMIT
+          termux-packages commit: $TERMUX_PACKAGES_COMMIT
+          builder image: $CI_BUILD_IMAGE@$CI_BUILD_IMAGE_DIGEST
+          build command: $CI_BUILD_COMMAND
+          rebuilt SHA-256: $actual_sha
+          historical SHA-256: $BINARY_PACKAGE_SHA256
+          historical byte-for-byte match: $historical_match
+          EOF
+          printf 'sha256=%s\n' "$actual_sha" >> "$GITHUB_OUTPUT"
+          printf 'historical_match=%s\n' "$historical_match" >> "$GITHUB_OUTPUT"
+          cat artifact/BUILD-PROVENANCE.txt
+
+      - name: Upload rebuilt glibc package
+        uses: actions/upload-artifact@v4
+        with:
+          name: tgcompat-glibc-aarch64-${{ steps.package.outputs.sha256 }}
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write job summary
+        shell: bash
+        run: |
+          {
+            echo '## Patched glibc rebuild'
+            echo
+            echo '- Architecture: `aarch64`'
+            echo '- SHA-256: `${{ steps.package.outputs.sha256 }}`'
+            echo '- Historical binary match: `${{ steps.package.outputs.historical_match }}`'
+            echo
+            echo 'This artifact is a rebuild candidate, not a published Steam runtime.'
+            echo 'It must pass the on-device tgcompat probes before entering a release.'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -12,4 +12,4 @@
 *.tsv text eol=lf
 *.txt text eol=lf
 *.vdf text eol=lf
-
+*.yml text eol=lf
