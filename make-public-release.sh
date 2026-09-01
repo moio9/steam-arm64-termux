@@ -200,7 +200,7 @@ source_tree=$temporary/$package_name-$package_version-source
 
 source_tar=$temporary/.source.tar
 tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner --format=gnu -cf "$source_tar" -C "$temporary" "${source_tree##*/}"
-zstd -q -19 -- "$source_tar" -o "$temporary/$source_name"
+zstd -q -19 -o "$temporary/$source_name" -- "$source_tar"
 
 rm -rf -- "$native_verify" "$source_tree"
 rm -f -- "$source_tar"

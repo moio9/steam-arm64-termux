@@ -403,7 +403,10 @@ verify_archive_file() {
     for required_file in README.md BUILD-PROVENANCE.md REBUILD.md rebuild-glibc.sh \
             SOURCE-MANIFEST.sha256 sources/$GLIBC_SOURCE_FILENAME \
             patches/glibc-packages-base-to-final.patch \
-            licenses/glibc-COPYING licenses/glibc-COPYING.LIB \
+            licenses/glibc-COPYING.LIB \
+            licenses/glibc-COPYING.LESSERv2 \
+            licenses/glibc-COPYINGv2 licenses/glibc-COPYINGv3 \
+            licenses/glibc-LICENSES \
             licenses/glibc-packages-LICENSE.md licenses/tgcompat-LICENSE \
             licenses/termux-packages-LICENSE.md; do
         [ -s "$bundle_root/$required_file" ] || die "archive lacks $required_file"
@@ -499,10 +502,17 @@ build_archive() {
     cp -a -- "$bundle_root/sources/termux-glibc-compat/integration/termux-glibc" \
         "$bundle_root/sources/tgcompat-glibc-overlay"
 
-    tar -xJOf "$glibc_source_cache" "glibc-$GLIBC_VERSION/COPYING" \
-        > "$bundle_root/licenses/glibc-COPYING"
-    tar -xJOf "$glibc_source_cache" "glibc-$GLIBC_VERSION/COPYING.LIB" \
-        > "$bundle_root/licenses/glibc-COPYING.LIB"
+    # glibc 2.44 stores COPYING.LIB as a symlink to COPYING.LESSERv2 in the
+    # release tarball.  `tar -xO` emits no bytes for an archive symlink, so
+    # copy the target text explicitly and retain the other license/notices
+    # files under unambiguous names.
+    for license_name in COPYING.LESSERv2 COPYINGv2 COPYINGv3 LICENSES; do
+        tar -xJOf "$glibc_source_cache" \
+            "glibc-$GLIBC_VERSION/$license_name" \
+            > "$bundle_root/licenses/glibc-$license_name"
+    done
+    cp -p -- "$bundle_root/licenses/glibc-COPYING.LESSERv2" \
+        "$bundle_root/licenses/glibc-COPYING.LIB"
     cp -p -- "$bundle_root/sources/glibc-packages-final/LICENSE.md" \
         "$bundle_root/licenses/glibc-packages-LICENSE.md"
     cp -p -- "$bundle_root/sources/termux-glibc-compat/LICENSE" \
@@ -520,7 +530,7 @@ build_archive() {
     normalized_tar=$cleanup_dir/$bundle_name.tar
     tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
         --format=gnu -cf "$normalized_tar" -C "$cleanup_dir" "$bundle_name"
-    zstd -q -19 -f -- "$normalized_tar" -o "$output_archive"
+    zstd -q -19 -f -o "$output_archive" -- "$normalized_tar"
     output_sha=$(file_sha256 "$output_archive")
     printf '%s  %s\n' "$output_sha" "$(basename -- "$output_archive")" \
         > "$output_archive.sha256"

@@ -16,9 +16,9 @@ d3128cfff39d2f04b994b48529a397a198e87302fdd3b359c511542a01252ca0  ./generate-ubu
 36626c22a282c4e5c3e7c72f13f9e42b2f167dce31d0f2491bcb0c8b73872f89  ./install-minimal-steam.sh
 8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643  ./licenses/GPL-2.0.txt
 dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551  ./licenses/LGPL-2.1.txt
-a9fb41686030ea9c6bf6a793a7e93ead6f1e03ebff25387ab530ce5b56d0ebf2  ./make-glibc-source-package.sh
+2f99720665502df0aec061a5a4a9999d199b4a1c005f76cc394c3b202d562bca  ./make-glibc-source-package.sh
 071bf1206a66f163aed9f72ad5bb020ae5a5b7accb472d376e976f461b9f3035  ./make-public-package.sh
-c06ed763b92e06db5f24bb72407c48efbc5c1046d9a471e5b474dfe810f7311d  ./make-public-release.sh
+d35e4a15f212abf5c6a96e3d4030d838e0fe99e67e32dfe478f6d466dcddb75f  ./make-public-release.sh
 f343a3d291c8d3953cc6a6a6555f027d5531cb85d2e78c18925e612e9679493e  ./make-public-source-tree.sh
 c7cfcf52d7100c0c35c9caca2109a98fdd16265ca8b2acfc6082898375fbc06d  ./proton-bionic-tool/COMPONENTS.md
 64d1fe3f0e221db8783bf06e91c02a2fdd7ff36e814daa70f52a9da096313c45  ./proton-bionic-tool/compatibilitytool.vdf
@@ -35,7 +35,7 @@ b6ff2474532fb0d23696e4e7095b9d9f5ae1f44405ee0c53024ccc30448e575f  ./public-sourc
 8a90f09563c663ca0756a2f8cc8ba19ebc4548d0e38358a643dc536d3abc1acf  ./public-source/lsteamclient/patches/0001-termux-arm64-bridge.patch
 1fce3c56032464797cf867934bab6dd68571b7f55dc3cbc187e2b129e8e96e90  ./public-source/lsteamclient/prepare-proton-source.sh
 bb9d8756d38df88a67072805d00d8d77af79d3e9fb9eb3a3a025303a82038155  ./public-source/lsteamclient/source.lock
-8f62fce06a5528484ab58730c24defec94897aacde46668c7e098773ecc13453  ./public-source/native/artifacts.tsv
+1c4c92f7d0786fb5f0551da7928d274cfa0562de85480cec674ed71adf014323  ./public-source/native/artifacts.tsv
 4ad68bb3521a67f2e8b89652373bb146c09024cfd265706d42d85d89a561f756  ./public-source/native/source-lock.sha256
 1b3cd93de0fb2ec9d5162bcd1d1202a10a8e294e0485977266b559d61685f7a1  ./public-source/native/source-trees.tsv
 eb73a7af1765679f91440bf822a33a29be6bd4cb602e9a195f37cf96e816faa7  ./public-source/native/toolchains.tsv
