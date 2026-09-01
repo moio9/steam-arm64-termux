@@ -1,0 +1,25 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+install_root=${STEAM_ARM64_INSTALL_DIR:-${HOME:?HOME is required}/.local/share/steam-arm64-termux}
+runner=$install_root/run-public-steam.sh
+client=$install_root/valve-client/steamrtarm64/steam
+setup=/data/data/com.termux/files/usr/bin/steam-arm64-setup
+
+if [[ -x $runner && -x $client ]]; then
+    exec "$runner" "$@"
+fi
+
+# A desktop launch has no useful stdout.  Open the first-run bootstrap in an
+# available X11 terminal, while direct shell launches retain their terminal.
+if [[ ! -t 1 ]]; then
+    if command -v xfce4-terminal >/dev/null 2>&1; then
+        exec xfce4-terminal --disable-server --hold --command="$setup"
+    elif command -v qterminal >/dev/null 2>&1; then
+        exec qterminal -e "$setup"
+    elif command -v xterm >/dev/null 2>&1; then
+        exec xterm -hold -e "$setup"
+    fi
+fi
+
+exec "$setup"

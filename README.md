@@ -16,6 +16,29 @@ bundle or replace Android applications or GPU drivers.
 
 ## Install and run
 
+### Termux package and desktop menu
+
+Configure the project APT repository once, then install and update Steam like a
+normal Termux package:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/moio9/steam-arm64-termux/main/setup-apt-repository.sh | bash
+pkg install steam-arm64
+```
+
+The package installs the `steam-arm64` command, a **Steam ARM64** entry in the
+XFCE/LXQt application menu, and an original project icon. The first launch opens
+the verified bootstrap in a terminal; later launches open Steam directly.
+User data and downloaded Valve files remain below
+`~/.local/share/steam-arm64-termux`, so removing the package never deletes a
+Steam account, installed games, or credentials.
+
+For a direct `.deb` installation without adding the repository, download the
+`steam-arm64_<version>_aarch64.deb` release asset and run
+`pkg install ./steam-arm64_<version>_aarch64.deb`.
+
+### Manual bootstrap
+
 The Git repository and GitHub-generated `Source code` archives intentionally
 contain no runtime binaries, so they are not installers. Download the named
 `steam-arm64-termux-<version>-bootstrap.tar.zst` release asset and its adjacent

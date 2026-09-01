@@ -89,6 +89,9 @@ files=(
     'fetch-ubuntu-runtime.py|fetch-ubuntu-runtime.py|0755'
     'generate-ubuntu-runtime-lock.py|generate-ubuntu-runtime-lock.py|0755'
     'install-minimal-steam.sh|install-minimal-steam.sh|0755'
+    'make-termux-deb.sh|make-termux-deb.sh|0755'
+    'make-apt-repository.sh|make-apt-repository.sh|0755'
+    'setup-apt-repository.sh|setup-apt-repository.sh|0755'
     'make-glibc-source-package.sh|make-glibc-source-package.sh|0755'
     'make-public-package.sh|make-public-package.sh|0755'
     'make-public-release.sh|make-public-release.sh|0755'
@@ -102,6 +105,12 @@ files=(
     'steam-fontconfig.conf|steam-fontconfig.conf|0644'
     'steam-linux-official-packages.txt|steam-linux-official-packages.txt|0644'
     'ubuntu-runtime-lock.json|ubuntu-runtime-lock.json|0644'
+
+    'packaging/steam-arm64/release.lock|packaging/steam-arm64/release.lock|0644'
+    'packaging/steam-arm64/steam-arm64|packaging/steam-arm64/steam-arm64|0755'
+    'packaging/steam-arm64/steam-arm64-setup|packaging/steam-arm64/steam-arm64-setup|0755'
+    'packaging/steam-arm64/steam-arm64.desktop|packaging/steam-arm64/steam-arm64.desktop|0644'
+    'packaging/steam-arm64/steam-arm64-termux.svg|packaging/steam-arm64/steam-arm64-termux.svg|0644'
 
     'steam-cert-fopen64-shim.c|steam-cert-fopen64-shim.c|0644'
     'steam-cert-open-shim.c|steam-cert-open-shim.c|0644'

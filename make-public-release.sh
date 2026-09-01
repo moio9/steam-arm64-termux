@@ -128,6 +128,9 @@ run_checks()
     scripts=(
         bootstrap-public-steam.sh
         install-minimal-steam.sh
+        make-termux-deb.sh
+        make-apt-repository.sh
+        setup-apt-repository.sh
         make-public-package.sh
         make-glibc-source-package.sh
         build-public-native.sh

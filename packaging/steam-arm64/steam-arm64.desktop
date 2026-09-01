@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Steam ARM64
+GenericName=Game Client
+Comment=Native ARM64 Steam for Termux
+Exec=steam-arm64
+TryExec=steam-arm64
+Icon=steam-arm64-termux
+Terminal=false
+Categories=Game;
+Keywords=steam;games;gaming;arm64;
+StartupNotify=true
+StartupWMClass=Steam

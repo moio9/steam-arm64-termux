@@ -5,7 +5,7 @@
 573b36f92c1a0cd5c64fa8df92fd2436d5516ac62cfbfc2f96fe2ad4ea1e1fb4  ./LICENSE
 48a56b6210fbc7171f9ae82424c97976db1760a5da8358559693523a42b3a82f  ./LICENSING.md
 ad197305f4664e339242bfec96a25335cf54d4d960abe0ed99d6dd7f0872ea5c  ./PACKAGE-VERSION
-f2b1617f014210885242125c2914e8208b89f4b3853e58e40f97dd1705def90d  ./README.md
+d83e3948dbbea284734a1112b3baf96407dd5f857fcd9b549eb9c1b25773dccb  ./README.md
 e1592d15de3fa9cf18aa9ffd1527dacbdbfabe536cddc6a71bb534c28327b03f  ./SOURCE-PROVENANCE.md
 38b1e34fe1078ae87b461377fd68a436b74d8313ff7965ddc9554fce8edef428  ./THIRD-PARTY-NOTICES.md
 04d740f2ac3323814bec5235f380f1f9e02bad4413cecf1a96cd0b00573c103d  ./bootstrap-public-steam.sh
@@ -16,10 +16,17 @@ d3128cfff39d2f04b994b48529a397a198e87302fdd3b359c511542a01252ca0  ./generate-ubu
 36626c22a282c4e5c3e7c72f13f9e42b2f167dce31d0f2491bcb0c8b73872f89  ./install-minimal-steam.sh
 8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643  ./licenses/GPL-2.0.txt
 dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551  ./licenses/LGPL-2.1.txt
+9d37b7ce8d2f81d5f04b276dbd9a91eb5c9a895e4f5f46e6d82b73121a2779ea  ./make-apt-repository.sh
 2f99720665502df0aec061a5a4a9999d199b4a1c005f76cc394c3b202d562bca  ./make-glibc-source-package.sh
-071bf1206a66f163aed9f72ad5bb020ae5a5b7accb472d376e976f461b9f3035  ./make-public-package.sh
-d35e4a15f212abf5c6a96e3d4030d838e0fe99e67e32dfe478f6d466dcddb75f  ./make-public-release.sh
-f343a3d291c8d3953cc6a6a6555f027d5531cb85d2e78c18925e612e9679493e  ./make-public-source-tree.sh
+506673c07cd23af3f04661da12fae7d53799af79d7db4d6a1bd79100d803a0f2  ./make-public-package.sh
+6b329a274158c9497ac68c31edc153fa45c21bbc49b85d73cfc0f5e9ae04afca  ./make-public-release.sh
+d1b678dd19711acb9a5c531a7ac3951d2bb2e69d6a0e55eb8bccb6bebce5fe82  ./make-public-source-tree.sh
+4f2173a3a63055c5dc7106d39ca014a522839d2ce9d9fcfac137c13c6b12a9b8  ./make-termux-deb.sh
+ac5a15cbb86e7c01606e6ee29da53eaad4c0818af8ec11d6fe27844081282550  ./packaging/steam-arm64/release.lock
+dc936ed9152e70ac61986ce4eb345abb5f89d0977c39b393d2dcfc118fa7b424  ./packaging/steam-arm64/steam-arm64
+29fbbf954794f284121e056477b0642df72e831c1a74e0de6ce2438b93335c6f  ./packaging/steam-arm64/steam-arm64-setup
+1d5dc9e8b5af331c53fd82059e0306d70a011d9bbacc077ef3e7922071f94239  ./packaging/steam-arm64/steam-arm64-termux.svg
+5608b77cec214109b184d3d670e7517ed9b3336550d9c8a1ef32eb6f4e9e3665  ./packaging/steam-arm64/steam-arm64.desktop
 c7cfcf52d7100c0c35c9caca2109a98fdd16265ca8b2acfc6082898375fbc06d  ./proton-bionic-tool/COMPONENTS.md
 64d1fe3f0e221db8783bf06e91c02a2fdd7ff36e814daa70f52a9da096313c45  ./proton-bionic-tool/compatibilitytool.vdf
 dd1abc45fc02c08f2c678c46c785060c462b300a569b8d0031faf545950a85d2  ./proton-bionic-tool/proton
@@ -110,6 +117,7 @@ fda730fdad79bbc59d2ba107f2ce97222d8e91dd199a6d2efbcd4a07eb433795  ./refresh-publ
 cb69a6ad57b7bd3a697690a5fdc47f8d6453d79b0227bf56dd9d868a1495979d  ./run-public-steam.sh
 d3b87ace0db1182ed6122ab1c33cc1e6ad2879dd902bf72eabfb512743abeab0  ./run-steam-tgcompat.sh
 0d29d6b56ab7a27ab8ff42846c142eecf3d2326e85e2e1a604fa22a47dd2a8e8  ./run-steam.sh
+6b3babff4d3f65ac04d60d9a0090097063c18092b6d8251ce1888e15cc89f3b4  ./setup-apt-repository.sh
 573b36f92c1a0cd5c64fa8df92fd2436d5516ac62cfbfc2f96fe2ad4ea1e1fb4  ./steam-bridge/LICENSE
 4e98feb07bd871d2f3d1b965084e1f511016f0e4e7b72f5aa8074a81468231bd  ./steam-bridge/README.md
 02973ebcfa474f79ad787f3f97f2d221f1ff3ef24e566a1f377ad3bce3d6f232  ./steam-bridge/applist_native.inc
