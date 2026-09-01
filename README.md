@@ -33,6 +33,16 @@ User data and downloaded Valve files remain below
 `~/.local/share/steam-arm64-termux`, so removing the package never deletes a
 Steam account, installed games, or credentials.
 
+Steam registers two Bionic compatibility choices for Windows games:
+
+- **Proton Bionic Box64 (Termux)** — the tested default;
+- **Proton Bionic FEX (Termux)** — the same Wine prefix, selecting
+  `libwow64fex.dll` instead of `wowbox64.dll` through `HODLL`.
+
+If the separately built `hangover-glibc-11.9` runtime is present, Steam also
+registers **Proton ARM64 glibc (Termux)**. It remains optional because that
+custom runtime is not bundled with the small bootstrap package.
+
 For a direct `.deb` installation without adding the repository, download the
 `steam-arm64_<version>_aarch64.deb` release asset and run
 `pkg install ./steam-arm64_<version>_aarch64.deb`.

@@ -69,6 +69,9 @@ required_files=(
     "$root/steam-bridge/run-server.sh"
     "$root/proton-bionic-tool/proton"
     "$root/proton-bionic-tool/compatibilitytool.vdf"
+    "$root/proton-bionic-fex-tool/proton"
+    "$root/proton-bionic-fex-tool/compatibilitytool.vdf"
+    "$root/proton-bionic-fex-tool/toolmanifest.vdf"
     "$root/proton-bionic-tool/vendor/dxvk-1.10.3/x32/d3d9.dll"
     "$root/proton-bionic-tool/vendor/dxvk-1.10.3/x64/dxgi.dll"
     "$root/proton-bionic-tool/vendor/vkd3d-proton-3.0.1/x86/d3d12.dll"
@@ -110,6 +113,7 @@ if (( ! check_only && ! skip_packages )); then
         curl python zstd git clang binutils file
         glibc-runner bash-glibc ca-certificates-glibc
         hangover-wine hangover-wowbox64 hangover-libarm64ecfex
+        hangover-libwow64fex
     )
     while IFS= read -r package; do
         [[ -n $package ]] && packages+=("$package")
@@ -152,7 +156,10 @@ printf '%s  %s\n' "$PATCH_SHA256" "$lsteam_patch" |
 
 [[ -x $wine_launcher && -x $wine_root/bin/wineserver &&
    -f $wine_root/lib/wine/i386-windows/lsteamclient.dll &&
-   -f $wine_root/lib/wine/i386-windows/steam.exe ]] || {
+   -f $wine_root/lib/wine/i386-windows/steam.exe &&
+   -f $wine_root/lib/wine/aarch64-windows/wowbox64.dll &&
+   -f $wine_root/lib/wine/aarch64-windows/libarm64ecfex.dll &&
+   -f $wine_root/lib/wine/aarch64-windows/libwow64fex.dll ]] || {
     printf '%s\n' 'Hangover Wine is not installed correctly.' >&2
     exit 1
 }
@@ -210,6 +217,7 @@ if (( ! check_only )); then
     install -m 0755 -- "$lsteam_artifact" "$lsteam_target"
     chmod 0700 "$root/run-steam.sh" "$root/run-steam-tgcompat.sh" \
         "$root/steamwebhelper-patched.sh" "$root/proton-bionic-tool/proton" \
+        "$root/proton-bionic-fex-tool/proton" \
         "$root/steam-bridge/run-server.sh"
 fi
 

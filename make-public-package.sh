@@ -53,8 +53,6 @@ contents=(
     CONTRIBUTING.md LICENSING.md SOURCE-PROVENANCE.md
     licenses/GPL-2.0.txt licenses/LGPL-2.1.txt
     bootstrap-public-steam.sh install-minimal-steam.sh
-    make-termux-deb.sh make-apt-repository.sh setup-apt-repository.sh
-    packaging/steam-arm64
     make-public-package.sh make-public-release.sh make-public-source-tree.sh
     make-glibc-source-package.sh build-public-native.sh
     refresh-public-lsteamclient-patch.sh refresh-public-native-locks.sh
@@ -76,6 +74,12 @@ contents=(
     proton-bionic-tool/COMPONENTS.md
     proton-bionic-tool/proton proton-bionic-tool/compatibilitytool.vdf
     proton-bionic-tool/toolmanifest.vdf
+    proton-bionic-fex-tool/proton
+    proton-bionic-fex-tool/compatibilitytool.vdf
+    proton-bionic-fex-tool/toolmanifest.vdf
+    proton-hangover-glibc-tool/proton
+    proton-hangover-glibc-tool/compatibilitytool.vdf
+    proton-hangover-glibc-tool/toolmanifest.vdf
     steam-bridge/README.md steam-bridge/LICENSE steam-bridge/build.sh
     steam-bridge/client.c steam-bridge/server.cpp steam-bridge/protocol.h
     steam-bridge/proton-functions.sh steam-bridge/run-server.sh

@@ -1,0 +1,16 @@
+#!/data/data/com.termux/files/usr/glibc/bin/bash
+set -euo pipefail
+
+tool_dir=${BASH_SOURCE[0]%/*}
+tool_dir=$(cd -- "$tool_dir" && pwd -P)
+root=$(cd -- "$tool_dir/.." && pwd -P)
+
+[[ -x $root/proton-bionic-tool/proton ]] || {
+    printf '%s\n' 'proton-bionic-fex: shared Proton launcher is missing' >&2
+    exit 127
+}
+
+# Box64 and FEX deliberately share the normal Bionic prefix. The common
+# launcher rewrites Wine's WoW64 CPU-module selection before every launch.
+export PROTON_BIONIC_CPU_BACKEND=fex
+exec "$root/proton-bionic-tool/proton" "$@"

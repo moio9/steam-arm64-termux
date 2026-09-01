@@ -4,8 +4,8 @@ umask 022
 
 prefix=/data/data/com.termux/files/usr
 payload_root=$prefix/share/steam-arm64-termux
-archive=$payload_root/steam-arm64-termux-0.1.0-bootstrap.tar.zst
-archive_sha256=248d42badb884f9467dd632f8d534f51dc7a14805219df21a6d5ac5c913403a4
+archive=$payload_root/steam-arm64-termux-0.1.1-bootstrap.tar.zst
+archive_sha256=57c0fabde20697b57aa016c16c1559f40d949ae2b4ee342087251127fc018e8c
 install_root=${STEAM_ARM64_INSTALL_DIR:-${HOME:?HOME is required}/.local/share/steam-arm64-termux}
 download_cache=${STEAM_ARM64_DOWNLOAD_CACHE:-${HOME:?HOME is required}/.cache/steam-arm64-termux/downloads}
 stage=
@@ -26,7 +26,7 @@ trap cleanup EXIT HUP INT TERM
 [[ ${PREFIX:-} == "$prefix" ]] || die 'standard Termux PREFIX is required'
 [[ $(uname -m) == aarch64 ]] || die 'an aarch64 Android device is required'
 [[ -f $archive && ! -L $archive ]] || die "packaged bootstrap is missing: $archive"
-[[ $(stat -c %s "$archive") == 6879397 ]] || die 'packaged bootstrap size mismatch'
+[[ $(stat -c %s "$archive") == 6878746 ]] || die 'packaged bootstrap size mismatch'
 [[ $(sha256sum "$archive" | cut -d' ' -f1) == "$archive_sha256" ]] ||
     die 'packaged bootstrap checksum mismatch'
 [[ $install_root == /* && $install_root != / && ! -L $install_root ]] ||

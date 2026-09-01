@@ -183,8 +183,6 @@ configure_cpu_backend() {
 
     export HODLL=$x86_module
     export HODLL64=$amd64_module
-    "$wine" reg add 'HKLM\Software\Microsoft\Wow64\amd64' /ve /d "$amd64_module" /f >/dev/null
-    "$wine" reg add 'HKLM\Software\Microsoft\Wow64\x86' /ve /d "$x86_module" /f >/dev/null
     printf '%s cpu_backend=%s amd64=%s x86=%s\n' \
         "$(date '+%Y-%m-%d %H:%M:%S')" "$cpu_backend" "$amd64_module" "$x86_module" >> "$log"
 }

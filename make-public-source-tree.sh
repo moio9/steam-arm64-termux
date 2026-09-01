@@ -131,6 +131,12 @@ files=(
     'proton-bionic-tool/compatibilitytool.vdf|proton-bionic-tool/compatibilitytool.vdf|0644'
     'proton-bionic-tool/proton|proton-bionic-tool/proton|0755'
     'proton-bionic-tool/toolmanifest.vdf|proton-bionic-tool/toolmanifest.vdf|0644'
+    'proton-bionic-fex-tool/compatibilitytool.vdf|proton-bionic-fex-tool/compatibilitytool.vdf|0644'
+    'proton-bionic-fex-tool/proton|proton-bionic-fex-tool/proton|0755'
+    'proton-bionic-fex-tool/toolmanifest.vdf|proton-bionic-fex-tool/toolmanifest.vdf|0644'
+    'proton-hangover-glibc-tool/compatibilitytool.vdf|proton-hangover-glibc-tool/compatibilitytool.vdf|0644'
+    'proton-hangover-glibc-tool/proton|proton-hangover-glibc-tool/proton|0755'
+    'proton-hangover-glibc-tool/toolmanifest.vdf|proton-hangover-glibc-tool/toolmanifest.vdf|0644'
 
     'steam-bridge/LICENSE|steam-bridge/LICENSE|0644'
     'steam-bridge/README.md|steam-bridge/README.md|0644'

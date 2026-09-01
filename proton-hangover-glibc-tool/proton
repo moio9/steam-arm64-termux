@@ -1,0 +1,129 @@
+#!/data/data/com.termux/files/usr/glibc/bin/bash
+set -euo pipefail
+
+verb=${1:-}
+[[ -n $verb ]] || { printf '%s\n' 'proton-glibc: missing verb' >&2; exit 2; }
+shift
+
+compat_data=${STEAM_COMPAT_DATA_PATH:-}
+[[ $compat_data == /* ]] || { printf '%s\n' 'proton-glibc: missing compatdata' >&2; exit 2; }
+
+tool_dir=${BASH_SOURCE[0]%/*}
+tool_dir=$(cd -- "$tool_dir" && pwd -P)
+root=$(cd -- "$tool_dir/.." && pwd -P)
+runtime=$root/hangover-glibc-11.9
+wine=$runtime/wine-termux
+wineserver=$runtime/wineserver-termux
+prefix=${PROTON_GLIBC_PREFIX:-$compat_data/pfx-glibc}
+log=${PROTON_GLIBC_LOG:-$compat_data/proton-hangover-glibc.log}
+dxvk=$root/proton-bionic-tool/vendor/dxvk-1.10.3
+vkd3d=$root/proton-bionic-tool/vendor/vkd3d-proton-3.0.1
+marker=$compat_data/.proton-hangover-glibc-v2
+legacy=$root/legacycompat
+
+install -d -m 0700 -- "$compat_data" "$prefix"
+unset LD_PRELOAD LD_LIBRARY_PATH GLIBC_LD_LIBRARY_PATH
+unset TGCOMPAT_LD_SO TGCOMPAT_LIBRARY_PATH TGCOMPAT_EXEC_LD_PRELOAD
+unset TGCOMPAT_EXEC_SHELL TGCOMPAT_EXEC_PATH_FROM TGCOMPAT_EXEC_PATH_TO
+unset VK_DRIVER_FILES VK_ICD_FILENAMES LIBGL_ALWAYS_SOFTWARE
+export WINEPREFIX=$prefix
+export TERMUX_GAMEPAD_BACKEND=sdl
+export WINEESYNC=${WINEESYNC:-1}
+export WINEDLLOVERRIDES='steam.exe=b;dxgi,d3d8,d3d9,d3d10core,d3d11,d3d12,d3d12core=n,b'
+export WINEDEBUG=${PROTON_GLIBC_WINEDEBUG:-+steamclient}
+export DXVK_FILTER_DEVICE_NAME=${DXVK_FILTER_DEVICE_NAME:-Turnip}
+export VKD3D_FILTER_DEVICE_NAME=${VKD3D_FILTER_DEVICE_NAME:-Turnip}
+
+launch_dir=${STEAM_COMPAT_INSTALL_PATH:-}
+if [[ -z $launch_dir || ! -d $launch_dir ]]; then
+    case ${1:-} in /*/*) launch_dir=${1%/*} ;; *) launch_dir=$PWD ;; esac
+fi
+
+prepare_args() {
+    launch_args=("$@")
+    local i relative
+    install -d -m 0700 -- "$prefix/dosdevices"
+    ln -sfn -- "$launch_dir" "$prefix/dosdevices/g:"
+    for ((i = 0; i + 1 < ${#launch_args[@]}; i++)); do
+        [[ ${launch_args[i]} == -game ]] || continue
+        relative=${launch_args[i + 1]}
+        [[ $relative != /* && $relative != [A-Za-z]:\\* ]] || continue
+        [[ -d $launch_dir/$relative ]] || continue
+        launch_args[i + 1]="G:\\$relative"
+    done
+}
+
+prepare_prefix() {
+    [[ -e $marker ]] && return 0
+    "$wine" wineboot -u
+    install -d -m 0700 -- "$prefix/drive_c/windows/system32" "$prefix/drive_c/windows/syswow64"
+    install -m 0600 -- "$dxvk"/x64/*.dll "$prefix/drive_c/windows/system32/"
+    install -m 0600 -- "$dxvk"/x32/*.dll "$prefix/drive_c/windows/syswow64/"
+    install -m 0600 -- "$vkd3d"/x64/*.dll "$prefix/drive_c/windows/system32/"
+    install -m 0600 -- "$vkd3d"/x86/*.dll "$prefix/drive_c/windows/syswow64/"
+    printf '%s\n' hangover-glibc-v1 > "$marker"
+}
+
+prepare_steam() {
+    local steam_dir=$prefix/drive_c/Program\ Files\ \(x86\)/Steam
+    local steamclient=$legacy/steamclient.dll
+    install -d -m 0700 -- "$steam_dir"
+    # Always use Steam's current legacy-compat client. NMRiH's bundled 2022
+    # client starts, but cannot authenticate against the current Steam session.
+    install -m 0600 -- "$steamclient" "$steam_dir/steamclient.dll"
+    if [[ ${SteamAppId:-${SteamGameId:-0}} == 224260 ]]; then
+        [[ ! -f $steam_dir/steamclient64.dll ]] ||
+            mv -f -- "$steam_dir/steamclient64.dll" "$steam_dir/steamclient64.dll.disabled-nmrih"
+    else
+        install -m 0600 -- "$legacy/steamclient64.dll" "$steam_dir/steamclient64.dll"
+    fi
+    install -m 0600 -- "$legacy/Steam.dll" "$steam_dir/Steam.dll"
+    install -m 0700 -- "$legacy/SteamService.exe" "$steam_dir/steam.exe"
+    install -m 0600 -- "$runtime/usr/lib/wine/i386-windows/lsteamclient.dll" \
+        "$prefix/drive_c/windows/syswow64/lsteamclient.dll"
+    install -m 0700 -- "$runtime/usr/lib/wine/i386-windows/steam.exe" \
+        "$prefix/drive_c/windows/syswow64/steam.exe"
+    # Add the Steam registry values normally supplied by a full Proton prefix.
+    "$wine" reg add 'HKCU\Software\Valve\Steam' /v SteamPath /d 'C:\Program Files (x86)\Steam' /f >/dev/null
+    "$wine" reg add 'HKCU\Software\Valve\Steam' /v SteamExe /d 'C:\Program Files (x86)\Steam\steam.exe' /f >/dev/null
+    "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v SteamClientDll /d 'C:\windows\syswow64\lsteamclient.dll' /f >/dev/null
+    "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v SteamPath /d 'C:\Program Files (x86)\Steam' /f >/dev/null
+}
+
+run_game() {
+    cd -- "$launch_dir"
+    prepare_args "$@"
+    printf '%s verb=%s appid=%s cwd=%q args=' "$(date '+%F %T')" "$verb" \
+        "${SteamAppId:-${SteamGameId:-0}}" "$launch_dir" >> "$log"
+    printf ' %q' "${launch_args[@]}" >> "$log"
+    printf '\n' >> "$log"
+    exec "$wine" 'C:\windows\syswow64\steam.exe' "${launch_args[@]}"
+}
+
+case $verb in
+    run|runinprefix)
+        prepare_prefix
+        prepare_steam
+        run_game "$@"
+        ;;
+    waitforexitandrun)
+        prepare_prefix
+        prepare_steam
+        cd -- "$launch_dir"
+        prepare_args "$@"
+        "$wine" 'C:/windows/syswow64/steam.exe' "${launch_args[@]}" > >(tee -a "$log") 2> >(tee -a "$log" >&2) &
+        game_pid=$!
+        trap '"$wineserver" -k >/dev/null 2>&1 || true; kill -TERM "$game_pid" 2>/dev/null || true' TERM INT HUP
+        set +e
+        wait "$game_pid"
+        status=$?
+        set -e
+        trap - TERM INT HUP
+        "$wineserver" -w >/dev/null 2>&1 || true
+        exit "$status"
+        ;;
+    getcompatpath) exec "$wine" winepath -w "$@" ;;
+    getnativepath) exec "$wine" winepath -u "$@" ;;
+    destroyprefix) exit 0 ;;
+    *) printf 'proton-glibc: unsupported verb: %s\n' "$verb" >&2; exit 2 ;;
+esac

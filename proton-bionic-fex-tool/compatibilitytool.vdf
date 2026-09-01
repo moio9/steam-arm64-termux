@@ -2,13 +2,13 @@
 {
     "compat_tools"
     {
-        "proton_bionic_termux"
+        "proton_bionic_fex_termux"
         {
             "install_path" "."
-            "display_name" "Proton Bionic Box64 (Termux)"
+            "display_name" "Proton Bionic FEX (Termux)"
             "from_oslist" "windows"
             "to_oslist" "linux"
-            "priority" "-90"
+            "priority" "-91"
         }
     }
 }

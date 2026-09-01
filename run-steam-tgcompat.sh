@@ -53,6 +53,21 @@ ln -sfn "$HERE/proton-bionic-tool" \
   "$HERE/compatibilitytools.d/Proton-Bionic-Termux"
 ln -sfn "$HERE/proton-bionic-tool" \
   "$STEAM_HOME/Steam/compatibilitytools.d/Proton-Bionic-Termux"
+ln -sfn "$HERE/proton-bionic-fex-tool" \
+  "$HERE/compatibilitytools.d/Proton-Bionic-FEX-Termux"
+ln -sfn "$HERE/proton-bionic-fex-tool" \
+  "$STEAM_HOME/Steam/compatibilitytools.d/Proton-Bionic-FEX-Termux"
+# The glibc Hangover build is a separate optional runtime. Only advertise its
+# tool when that runtime is complete, so a clean installation never offers a
+# compatibility choice that is guaranteed to fail.
+if [[ -x $HERE/hangover-glibc-11.9/wine-termux &&
+      -x $HERE/hangover-glibc-11.9/wineserver-termux &&
+      -x $HERE/proton-hangover-glibc-tool/proton ]]; then
+  ln -sfn "$HERE/proton-hangover-glibc-tool" \
+    "$HERE/compatibilitytools.d/Proton-ARM64-glibc-Termux"
+  ln -sfn "$HERE/proton-hangover-glibc-tool" \
+    "$STEAM_HOME/Steam/compatibilitytools.d/Proton-ARM64-glibc-Termux"
+fi
 # The updater resolves its bundled fonts relative to the patched executable.
 ln -sfn ../clientui "$STEAM_DIR/clientui"
 ln -sfn "$CLIENT_ROOT/clientui" "$STEAM_HOME/Steam/clientui"
