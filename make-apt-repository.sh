@@ -14,7 +14,7 @@ die() {
 [[ $deb == /* && -f $deb && ! -L $deb && $output == /* ]] ||
     die 'usage: ./make-apt-repository.sh /absolute/package.deb /absolute/new-directory'
 [[ ! -e $output && ! -L $output ]] || die "refusing to overwrite: $output"
-for tool in dpkg-deb sha256sum stat gzip install find touch; do
+for tool in dpkg-deb sha256sum stat gzip install find touch date; do
     command -v "$tool" >/dev/null 2>&1 || die "missing tool: $tool"
 done
 
@@ -42,6 +42,7 @@ release=$output/dists/stable/Release
     printf '%s\n' 'Label: Steam ARM64 for Termux'
     printf '%s\n' 'Suite: stable'
     printf '%s\n' 'Codename: stable'
+    printf 'Date: %s\n' "$(LC_ALL=C date -Ru -d "@$source_epoch")"
     printf '%s\n' 'Architectures: aarch64'
     printf '%s\n' 'Components: main'
     printf '%s\n' 'Description: Native ARM64 Steam packages for Termux'
