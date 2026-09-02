@@ -7,5 +7,5 @@ Architectures: aarch64
 Components: main
 Description: Native ARM64 Steam packages for Termux
 SHA256:
- c62fb6629e949fbcddde307a34300b390c79726899a42c67dadc0929e308ebc5              646 main/binary-aarch64/Packages
- 0501e2457e2cde07b71068500f4699089ba12f51c7d53e237c147873ad8f89d7              450 main/binary-aarch64/Packages.gz
+ 6e1fb08a9d446a2c8538a346c9e3bae27eccf5a415cc1f1bd4fa4fbe4a579ff0              646 main/binary-aarch64/Packages
+ 668322876581f0e0085d954d92e18d2a30765c7b6b2d8a91f0e24bd13e685ff5              447 main/binary-aarch64/Packages.gz
