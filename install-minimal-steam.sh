@@ -69,6 +69,7 @@ required_files=(
     "$root/steam-bridge/proton-functions.sh"
     "$root/steam-bridge/run-server.sh"
     "$root/proton-bionic-tool/proton"
+    "$root/proton-bionic-tool/steam-runtime-steam-remote"
     "$root/proton-bionic-tool/compatibilitytool.vdf"
     "$root/proton-bionic-fex-tool/proton"
     "$root/proton-bionic-fex-tool/compatibilitytool.vdf"
@@ -218,6 +219,7 @@ if (( ! check_only )); then
     install -m 0755 -- "$lsteam_artifact" "$lsteam_target"
     chmod 0700 "$root/run-steam.sh" "$root/run-steam-tgcompat.sh" \
         "$root/steamwebhelper-patched.sh" "$root/proton-bionic-tool/proton" \
+        "$root/proton-bionic-tool/steam-runtime-steam-remote" \
         "$root/proton-bionic-fex-tool/proton" \
         "$root/steam-bridge/run-server.sh"
 fi

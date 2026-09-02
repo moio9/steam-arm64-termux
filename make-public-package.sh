@@ -49,7 +49,7 @@ support_objects=(
     steam-x11-main-shim.so
 )
 contents=(
-    LICENSE PACKAGE-VERSION README-STEAM-ARM64.md THIRD-PARTY-NOTICES.md
+    LICENSE PACKAGE-VERSION README.md THIRD-PARTY-NOTICES.md
     CONTRIBUTING.md LICENSING.md SOURCE-PROVENANCE.md
     licenses/GPL-2.0.txt licenses/LGPL-2.1.txt
     bootstrap-public-steam.sh configure-steam-default-compat.py
@@ -73,7 +73,8 @@ contents=(
     tgcompat-glibc/current "$runtime/lib" "$runtime/etc"
     "$runtime/.tgcompat-package-sha256"
     proton-bionic-tool/COMPONENTS.md
-    proton-bionic-tool/proton proton-bionic-tool/compatibilitytool.vdf
+    proton-bionic-tool/proton proton-bionic-tool/steam-runtime-steam-remote
+    proton-bionic-tool/compatibilitytool.vdf
     proton-bionic-tool/toolmanifest.vdf
     proton-bionic-fex-tool/proton
     proton-bionic-fex-tool/compatibilitytool.vdf
@@ -86,7 +87,7 @@ contents=(
     steam-bridge/proton-functions.sh steam-bridge/run-server.sh
     steam-bridge/lsteambridge-client steam-bridge/lsteambridge-server
     public-source/glibc public-source/native public-source/lsteamclient
-    public-source/repository.gitattributes public-source/repository.gitignore
+    .gitattributes .gitignore
 )
 native_sources=(
     steam-cert-fopen64-shim.c

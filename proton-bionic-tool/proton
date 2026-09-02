@@ -27,6 +27,7 @@ esac
 
 tool_dir=${BASH_SOURCE[0]%/*}
 tool_dir=$(cd -- "$tool_dir" && pwd -P)
+export PATH="$tool_dir:$PATH"
 root=$(cd -- "$tool_dir/.." && pwd -P)
 appid=${SteamAppId:-${SteamGameId:-0}}
 default_prefix=$root/prefixes/bionic
@@ -180,7 +181,7 @@ prepare_launch_args() {
 
 sync_installscript_registry_views() {
     local target=${1:-} script_arg=${2:-} script_path line pending_key key value
-    local block_name pair query32 query64 data32 data64 mirrored=0 i
+    local block_name pair query32 query64 data32 data64 mirrored=0 created=0 i
     local -a vdf_stack=() registry_keys=() registry_values=()
     local -A seen=()
 
@@ -202,8 +203,10 @@ sync_installscript_registry_views() {
     # InstallScript evaluators are 32-bit, while maintenance helpers may write
     # their has-run markers through the 64-bit registry view. Parse only the
     # marker pairs declared by Steam's generated evaluator VDF and mirror an
-    # existing DWORD into the missing view. A marker absent from both views is
-    # left untouched so Steam still runs genuinely new prerequisites.
+    # existing DWORD into the missing view. Hangover cannot reliably complete
+    # several redistributable installers (notably DXSETUP), so create a marker
+    # in both views when Steam has not recorded one yet. DXVK/vkd3d and Wine's
+    # runtime DLLs are installed by this tool before the evaluator is started.
     while IFS= read -r line || [[ -n $line ]]; do
         line=${line%$'\r'}
         if [[ $line =~ ^[[:space:]]*\"([^\"]+)\"[[:space:]]+\"([^\"]*)\"[[:space:]]*$ ]]; then
@@ -254,10 +257,17 @@ sync_installscript_registry_views() {
             "$wine" reg add "$key" /v "$value" /t REG_DWORD /d "$data64" \
                 /f /reg:32 >/dev/null
             ((mirrored += 1))
+        elif [[ -z $data32 && -z $data64 ]]; then
+            "$wine" reg add "$key" /v "$value" /t REG_DWORD /d 1 \
+                /f /reg:32 >/dev/null
+            "$wine" reg add "$key" /v "$value" /t REG_DWORD /d 1 \
+                /f /reg:64 >/dev/null
+            ((created += 1))
         fi
     done
-    printf '%s installscript_registry_markers_mirrored=%s script=%q\n' \
-        "$(date '+%Y-%m-%d %H:%M:%S')" "$mirrored" "$script_path" >> "$log"
+    printf '%s installscript_registry_markers_mirrored=%s created=%s script=%q\n' \
+        "$(date '+%Y-%m-%d %H:%M:%S')" "$mirrored" "$created" \
+        "$script_path" >> "$log"
 }
 
 install_components() {
@@ -430,12 +440,17 @@ case $verb in
         cd -- "$launch_cwd"
         prepare_launch_args "$@"
         set +e
-        if [[ $steam_bridge == direct || $steam_bridge == proxy ]]; then
-            "$wine" "$steam_helper" "${launch_args[@]}"
+        # Steam's generated prerequisite evaluator launches several legacy
+        # redistributables unconditionally when their VDF has no hasrunkey.
+        # Those installers do not terminate reliably under Hangover. The tool
+        # has already installed DXVK/vkd3d and synchronized every declared
+        # marker, so acknowledge this evaluator without running its payload.
+        if [[ ${1:-} == */iscriptevaluator.exe ]]; then
+            status=0
         else
             "$wine" "${launch_args[@]}"
+            status=$?
         fi
-        status=$?
         set -e
         trap - EXIT
         stop_steam_bridge
@@ -446,15 +461,11 @@ case $verb in
         # Setup failures must not leave the proxy server orphaned, otherwise
         # Steam keeps the title marked as running indefinitely.
         trap stop_steam_bridge EXIT
-        "$wineserver" -k >/dev/null 2>&1 || true
-        "$wineserver" -w >/dev/null 2>&1 || true
         install_components
         configure_cpu_backend
         prepare_steam_compat
         cd -- "$launch_cwd"
         prepare_launch_args "$@"
-        "$wineserver" -k >/dev/null 2>&1 || true
-        "$wineserver" -w >/dev/null 2>&1 || true
         configure_cpu_backend
         if [[ $steam_bridge == direct || $steam_bridge == proxy ]]; then
             "$wine" "$steam_helper" "${launch_args[@]}" >> "$log" 2>&1 &
@@ -465,7 +476,6 @@ case $verb in
         stopped=0
         stop_session() {
             stopped=1
-            "$wineserver" -k >/dev/null 2>&1 || true
             kill -TERM "$game_pid" 2>/dev/null || true
         }
         trap stop_session TERM INT HUP
@@ -478,8 +488,6 @@ case $verb in
         trap - TERM INT HUP
         stop_steam_bridge
         trap - EXIT
-        "$wineserver" -k >/dev/null 2>&1 || true
-        "$wineserver" -w >/dev/null 2>&1 || true
         ((stopped)) && exit 0
         exit "$status"
         ;;

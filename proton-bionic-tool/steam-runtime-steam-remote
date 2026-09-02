@@ -1,0 +1,51 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+# Wine's builtin steam.exe forwards -applaunch requests through this helper.
+# Send its Steam URL to the FIFO owned by the native ARM64 client.
+tool_dir=$(cd -- "$(dirname -- "$0")" && pwd -P)
+install_root=$(cd -- "$tool_dir/.." && pwd -P)
+steam_state=$install_root/steam-home/.steam
+steam_pipe=$steam_state/steam.pipe
+steam_pid_file=$steam_state/steam.pid
+client_root=${STEAM_ARM64_CLIENT_ROOT:-$install_root/valve-client}
+
+[[ ${1:-} == steam ]] && shift
+steam_uri=
+previous=
+for argument in "$@"; do
+    [[ $argument == steam://* ]] && steam_uri=$argument
+    if [[ $previous == -applaunch && $argument =~ ^[0-9]+$ ]]; then
+        steam_uri=steam://rungameid/$argument
+    fi
+    previous=$argument
+done
+
+[[ -n $steam_uri && $steam_uri != *"'"* ]] || {
+    printf '%s\n' 'steam-runtime-steam-remote: invalid or missing Steam URI' >&2
+    exit 2
+}
+[[ -r $steam_pid_file && -p $steam_pipe ]] || {
+    printf '%s\n' 'steam-runtime-steam-remote: Steam is not running' >&2
+    exit 1
+}
+
+steam_pid=$(<"$steam_pid_file")
+[[ $steam_pid =~ ^[0-9]+$ && -d /proc/$steam_pid/fd ]] || {
+    printf '%s\n' 'steam-runtime-steam-remote: stale Steam PID' >&2
+    exit 1
+}
+
+pipe_open=0
+for descriptor in /proc/$steam_pid/fd/*; do
+    [[ $(readlink -- "$descriptor" 2>/dev/null || true) == "$steam_pipe" ]] || continue
+    pipe_open=1
+    break
+done
+((pipe_open)) || {
+    printf '%s\n' 'steam-runtime-steam-remote: Steam pipe has no reader' >&2
+    exit 1
+}
+
+printf "'%s' '-ifrunning' '%s'\n" \
+    "$client_root/steamrtarm64/steam-patched" "$steam_uri" > "$steam_pipe"

@@ -72,15 +72,15 @@ done
 files=(
     'LICENSE|LICENSE|0644'
     'PACKAGE-VERSION|PACKAGE-VERSION|0644'
-    'README-STEAM-ARM64.md|README.md|0644'
+    'README.md|README.md|0644'
     'LICENSING.md|LICENSING.md|0644'
     'SOURCE-PROVENANCE.md|SOURCE-PROVENANCE.md|0644'
     'THIRD-PARTY-NOTICES.md|THIRD-PARTY-NOTICES.md|0644'
     'CONTRIBUTING.md|CONTRIBUTING.md|0644'
     'licenses/GPL-2.0.txt|licenses/GPL-2.0.txt|0644'
     'licenses/LGPL-2.1.txt|licenses/LGPL-2.1.txt|0644'
-    'public-source/repository.gitattributes|.gitattributes|0644'
-    'public-source/repository.gitignore|.gitignore|0644'
+    '.gitattributes|.gitattributes|0644'
+    '.gitignore|.gitignore|0644'
     '.github/workflows/glibc-runtime.yml|.github/workflows/glibc-runtime.yml|0644'
 
     'bootstrap-public-steam.sh|bootstrap-public-steam.sh|0755'
@@ -110,7 +110,6 @@ files=(
     'packaging/steam-arm64/release.lock|packaging/steam-arm64/release.lock|0644'
     'packaging/steam-arm64/steam-arm64|packaging/steam-arm64/steam-arm64|0755'
     'packaging/steam-arm64/steam-arm64-setup|packaging/steam-arm64/steam-arm64-setup|0755'
-    'packaging/steam-arm64/steam-arm64-uninstall|packaging/steam-arm64/steam-arm64-uninstall|0755'
     'packaging/steam-arm64/steam-arm64.desktop|packaging/steam-arm64/steam-arm64.desktop|0644'
     'packaging/steam-arm64/steam-arm64-termux.svg|packaging/steam-arm64/steam-arm64-termux.svg|0644'
 
@@ -132,6 +131,7 @@ files=(
     'proton-bionic-tool/COMPONENTS.md|proton-bionic-tool/COMPONENTS.md|0644'
     'proton-bionic-tool/compatibilitytool.vdf|proton-bionic-tool/compatibilitytool.vdf|0644'
     'proton-bionic-tool/proton|proton-bionic-tool/proton|0755'
+    'proton-bionic-tool/steam-runtime-steam-remote|proton-bionic-tool/steam-runtime-steam-remote|0755'
     'proton-bionic-tool/toolmanifest.vdf|proton-bionic-tool/toolmanifest.vdf|0644'
     'proton-bionic-fex-tool/compatibilitytool.vdf|proton-bionic-fex-tool/compatibilitytool.vdf|0644'
     'proton-bionic-fex-tool/proton|proton-bionic-fex-tool/proton|0755'
@@ -233,23 +233,37 @@ done
 # files can enter the staged source tree.
 steamclienttermux_repo=$root/reference-steamclienttermux
 tgcompat_repo=$root/reference-termux-glibc-compat
-[[ $(git -C "$steamclienttermux_repo" rev-parse HEAD) == "$steamclienttermux_revision" ]] ||
-    die 'reference-steamclienttermux is not at its locked revision'
-[[ $(git -C "$tgcompat_repo" rev-parse HEAD) == "$tgcompat_revision" ]] ||
-    die 'reference-termux-glibc-compat is not at its locked revision'
-
 install -d -m 0755 -- "$stage/reference-steamclienttermux"
-git -C "$steamclienttermux_repo" archive --format=tar "$steamclienttermux_revision" -- \
-    LICENSE config/steam-arm64-bootstrap-lock.json \
-    scripts/bootstrap-steam-arm64-client.py diagnostics/native-lsof.c |
-    tar -xf - -C "$stage/reference-steamclienttermux"
-
 install -d -m 0755 -- "$stage/reference-termux-glibc-compat"
-git -C "$tgcompat_repo" archive --format=tar "$tgcompat_revision" -- \
-    .github/workflows/ci.yml .gitignore LICENSE Makefile README.md \
-    benchmarks docs/ARCHITECTURE.md docs/BASELINE.md docs/PERFORMANCE.md \
-    docs/ROADMAP.md include integration probes scripts src tests |
-    tar -xf - -C "$stage/reference-termux-glibc-compat"
+if [[ -d $steamclienttermux_repo/.git && -d $tgcompat_repo/.git ]]; then
+    [[ $(git -C "$steamclienttermux_repo" rev-parse HEAD) == "$steamclienttermux_revision" ]] ||
+        die 'reference-steamclienttermux is not at its locked revision'
+    [[ $(git -C "$tgcompat_repo" rev-parse HEAD) == "$tgcompat_revision" ]] ||
+        die 'reference-termux-glibc-compat is not at its locked revision'
+    git -C "$steamclienttermux_repo" archive --format=tar "$steamclienttermux_revision" -- \
+        LICENSE config/steam-arm64-bootstrap-lock.json \
+        scripts/bootstrap-steam-arm64-client.py diagnostics/native-lsof.c |
+        tar -xf - -C "$stage/reference-steamclienttermux"
+    git -C "$tgcompat_repo" archive --format=tar "$tgcompat_revision" -- \
+        .github/workflows/ci.yml .gitignore LICENSE Makefile README.md \
+        benchmarks docs/ARCHITECTURE.md docs/BASELINE.md docs/PERFORMANCE.md \
+        docs/ROADMAP.md include integration probes scripts src tests |
+        tar -xf - -C "$stage/reference-termux-glibc-compat"
+else
+    # Public checkouts vendor these locked snapshots without nested .git
+    # directories. Their bytes are then protected by the outer repository.
+    git -C "$root" diff --quiet -- reference-steamclienttermux \
+        reference-termux-glibc-compat || die 'vendored reference snapshot is modified'
+    tar -C "$steamclienttermux_repo" -cf - \
+        LICENSE config/steam-arm64-bootstrap-lock.json \
+        scripts/bootstrap-steam-arm64-client.py diagnostics/native-lsof.c |
+        tar -xf - -C "$stage/reference-steamclienttermux"
+    tar -C "$tgcompat_repo" -cf - \
+        .github/workflows/ci.yml .gitignore LICENSE Makefile README.md \
+        benchmarks docs/ARCHITECTURE.md docs/BASELINE.md docs/PERFORMANCE.md \
+        docs/ROADMAP.md include integration probes scripts src tests |
+        tar -xf - -C "$stage/reference-termux-glibc-compat"
+fi
 
 # Normalize metadata so two runs with the same source bytes produce the same
 # Git worktree and checksum manifest.
