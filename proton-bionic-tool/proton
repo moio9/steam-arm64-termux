@@ -178,6 +178,88 @@ prepare_launch_args() {
     printf '\n' >> "$log"
 }
 
+sync_installscript_registry_views() {
+    local target=${1:-} script_arg=${2:-} script_path line pending_key key value
+    local block_name pair query32 query64 data32 data64 mirrored=0 i
+    local -a vdf_stack=() registry_keys=() registry_values=()
+    local -A seen=()
+
+    case $target in
+        */iscriptevaluator.exe) ;;
+        *) return 0 ;;
+    esac
+    [[ -n $script_arg ]] || return 0
+    script_path=${script_arg//\\//}
+    if [[ $script_path != /* ]]; then
+        script_path=$launch_cwd/$script_path
+    fi
+    [[ $script_path == "$launch_cwd/"* && -f $script_path && ! -L $script_path ]] || {
+        printf 'proton-bionic-termux: cannot safely inspect evaluator script: %s\n' \
+            "$script_path" >&2
+        return 0
+    }
+
+    # InstallScript evaluators are 32-bit, while maintenance helpers may write
+    # their has-run markers through the 64-bit registry view. Parse only the
+    # marker pairs declared by Steam's generated evaluator VDF and mirror an
+    # existing DWORD into the missing view. A marker absent from both views is
+    # left untouched so Steam still runs genuinely new prerequisites.
+    while IFS= read -r line || [[ -n $line ]]; do
+        line=${line%$'\r'}
+        if [[ $line =~ ^[[:space:]]*\"([^\"]+)\"[[:space:]]+\"([^\"]*)\"[[:space:]]*$ ]]; then
+            key=${BASH_REMATCH[1]}
+            value=${BASH_REMATCH[2]}
+            value=${value//\\\\/$'\\'}
+            if [[ ${key,,} == hasrunkey && ${#vdf_stack[@]} -gt 0 ]]; then
+                block_name=${vdf_stack[${#vdf_stack[@]}-1]}
+                registry_keys+=("$value")
+                registry_values+=("$block_name")
+            fi
+            pending_key=
+        elif [[ $line =~ ^[[:space:]]*\"([^\"]+)\"[[:space:]]*$ ]]; then
+            pending_key=${BASH_REMATCH[1]}
+        elif [[ $line =~ ^[[:space:]]*\{[[:space:]]*$ ]]; then
+            vdf_stack+=("${pending_key:-}")
+            pending_key=
+        elif [[ $line =~ ^[[:space:]]*\}[[:space:]]*$ ]]; then
+            if [[ ${#vdf_stack[@]} -gt 0 ]]; then
+                unset 'vdf_stack[${#vdf_stack[@]}-1]'
+            fi
+            pending_key=
+        fi
+    done < "$script_path"
+
+    for ((i = 0; i < ${#registry_keys[@]}; i++)); do
+        key=${registry_keys[i]}
+        value=${registry_values[i]}
+        [[ $key =~ ^(HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER)\\ && -n $value ]] || continue
+        pair=$key$'\034'$value
+        [[ -z ${seen[$pair]:-} ]] || continue
+        seen[$pair]=1
+        query32=$("$wine" reg query "$key" /v "$value" /reg:32 2>/dev/null || true)
+        query64=$("$wine" reg query "$key" /v "$value" /reg:64 2>/dev/null || true)
+        data32=
+        data64=
+        if [[ $query32 =~ REG_DWORD[[:space:]]+(0x[0-9A-Fa-f]+|[0-9]+) ]]; then
+            data32=${BASH_REMATCH[1]}
+        fi
+        if [[ $query64 =~ REG_DWORD[[:space:]]+(0x[0-9A-Fa-f]+|[0-9]+) ]]; then
+            data64=${BASH_REMATCH[1]}
+        fi
+        if [[ -n $data32 && -z $data64 ]]; then
+            "$wine" reg add "$key" /v "$value" /t REG_DWORD /d "$data32" \
+                /f /reg:64 >/dev/null
+            ((mirrored += 1))
+        elif [[ -n $data64 && -z $data32 ]]; then
+            "$wine" reg add "$key" /v "$value" /t REG_DWORD /d "$data64" \
+                /f /reg:32 >/dev/null
+            ((mirrored += 1))
+        fi
+    done
+    printf '%s installscript_registry_markers_mirrored=%s script=%q\n' \
+        "$(date '+%Y-%m-%d %H:%M:%S')" "$mirrored" "$script_path" >> "$log"
+}
+
 install_components() {
     [[ -e $component_marker ]] && return 0
 
@@ -344,6 +426,7 @@ case $verb in
         install_components
         configure_cpu_backend
         prepare_steam_compat
+        sync_installscript_registry_views "$@"
         cd -- "$launch_cwd"
         prepare_launch_args "$@"
         set +e

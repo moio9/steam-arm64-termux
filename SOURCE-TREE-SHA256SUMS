@@ -23,9 +23,9 @@ ec00cca583bd2c53460848c83799c4bbb25339a91ddd0af4a2390b3950e2a722  ./make-public-
 6b329a274158c9497ac68c31edc153fa45c21bbc49b85d73cfc0f5e9ae04afca  ./make-public-release.sh
 f1edfabffe0d0009a512b90981b2562d57ca2de2c3fe91c582f932cf8df0876c  ./make-public-source-tree.sh
 4f2173a3a63055c5dc7106d39ca014a522839d2ce9d9fcfac137c13c6b12a9b8  ./make-termux-deb.sh
-e2486bad379e4e8bbd84af0825357cc9c327d7581b2caa8d57792c8e2ae8bccd  ./packaging/steam-arm64/release.lock
-4467f7f8e7c4321b9d663012660f1ae47ab6f11ae5c81b37fbbb5dae94740a8a  ./packaging/steam-arm64/steam-arm64
-ff70704a0719ce97ff88ca35d138d417cd0fb91bcbf9831a26adf46f666680fd  ./packaging/steam-arm64/steam-arm64-setup
+998cb5abf77c07517490e4253c0b9b39757f3ddd5fddd8375432c2df7e5327ad  ./packaging/steam-arm64/release.lock
+5aded3b99de10c808dbb820c51d25aafeb68cb57477d59b50f3d698ab2ba0e29  ./packaging/steam-arm64/steam-arm64
+7bf41488bd395d92c53f37adfdf8b009305f27269d01bfb5ff4fa746edfd880b  ./packaging/steam-arm64/steam-arm64-setup
 1d5dc9e8b5af331c53fd82059e0306d70a011d9bbacc077ef3e7922071f94239  ./packaging/steam-arm64/steam-arm64-termux.svg
 5608b77cec214109b184d3d670e7517ed9b3336550d9c8a1ef32eb6f4e9e3665  ./packaging/steam-arm64/steam-arm64.desktop
 89ad001ad440a49609f150d4ad25eedbe321b600adb1442da83a20c6cb298250  ./proton-bionic-fex-tool/compatibilitytool.vdf
@@ -33,7 +33,7 @@ ff70704a0719ce97ff88ca35d138d417cd0fb91bcbf9831a26adf46f666680fd  ./packaging/st
 0784ca4d4e1f044de45a87c8183614aa70ac0a5569c5c238d526db04ce35b806  ./proton-bionic-fex-tool/toolmanifest.vdf
 c7cfcf52d7100c0c35c9caca2109a98fdd16265ca8b2acfc6082898375fbc06d  ./proton-bionic-tool/COMPONENTS.md
 21a5270287dfa44ab25124410674c7e7db218f41be6db97979e5bf0c49455404  ./proton-bionic-tool/compatibilitytool.vdf
-bd18d59ced9b763f52a39263905019fd53d8584a4ef9979ba88c844220f2288f  ./proton-bionic-tool/proton
+f8973d759f7b74a2edb9b40840851001b2e95d7ae277d8903b999127924c8060  ./proton-bionic-tool/proton
 0784ca4d4e1f044de45a87c8183614aa70ac0a5569c5c238d526db04ce35b806  ./proton-bionic-tool/toolmanifest.vdf
 3494f2acd365e5a16ce38390ab9b2249637bf0ac2c6780f4bc99a4995b861e68  ./proton-hangover-glibc-tool/compatibilitytool.vdf
 33aaccc12a71c61813c65a8b865df8f2a0dddcde6979aa1afd9a82a14e020c51  ./proton-hangover-glibc-tool/proton
