@@ -1,5 +1,5 @@
 Package: steam-arm64
-Version: 0.1.2-8
+Version: 0.1.2-7
 Architecture: aarch64
 Maintainer: moio9 <noreply@github.com>
 Installed-Size: 6780
@@ -10,7 +10,7 @@ Homepage: https://github.com/moio9/steam-arm64-termux
 Description: Native ARM64 Steam bootstrap and desktop integration for Termux
  Downloads locked upstream components on first launch. Valve client files,
  games, credentials and the Steamworks SDK are not included in this package.
-Filename: pool/main/s/steam-arm64/steam-arm64_0.1.2-8_aarch64.deb
-Size: 6621492
-SHA256: 003d66de24526c12f88434772ea066ccfdd103d12f03aceac8e8b4c0d9e3c33c
+Filename: pool/main/s/steam-arm64/steam-arm64_0.1.2-7_aarch64.deb
+Size: 6621272
+SHA256: edebb1cd32d9530b18af3835d70b5273c1c66be3c3eff9925579c6655b47418e
 
