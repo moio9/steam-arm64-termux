@@ -87,6 +87,36 @@ def load_lock(path: Path) -> dict[str, object]:
     require_int(seed.get("size"), "seed_executable.size", 1)
     require_sha256(seed.get("sha256"), "seed_executable.sha256")
     require_int(seed.get("elf_machine"), "seed_executable.elf_machine", 1)
+    supplemental = payload.get("supplemental_archives", [])
+    if not isinstance(supplemental, list):
+        raise BootstrapError("supplemental_archives must be a list")
+    for index, archive in enumerate(supplemental):
+        label = f"supplemental_archives[{index}]"
+        if not isinstance(archive, dict):
+            raise BootstrapError(f"{label} must be an object")
+        name = archive.get("name")
+        cache_name = archive.get("cache_name")
+        if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9_.+-]+", name):
+            raise BootstrapError(f"{label}.name is unsafe")
+        if not isinstance(cache_name, str) or normalized_member(cache_name) != cache_name or "/" in cache_name:
+            raise BootstrapError(f"{label}.cache_name is unsafe")
+        validate_url(archive.get("url"), f"{label}.url")
+        require_int(archive.get("size"), f"{label}.size", 1)
+        require_sha256(archive.get("sha256"), f"{label}.sha256")
+        require_int(
+            archive.get("max_uncompressed_bytes"),
+            f"{label}.max_uncompressed_bytes",
+            1,
+        )
+        members = archive.get("members")
+        if not isinstance(members, dict) or not members:
+            raise BootstrapError(f"{label}.members must be a non-empty object")
+        for member, identity in members.items():
+            normalized_member(member, f"{label} member")
+            if not isinstance(identity, dict):
+                raise BootstrapError(f"{label} member identity must be an object")
+            require_int(identity.get("size"), f"{label}.{member}.size", 1)
+            require_sha256(identity.get("sha256"), f"{label}.{member}.sha256")
     if payload.get("redistribution") is not False:
         raise BootstrapError("lock must explicitly forbid Valve binary redistribution")
     return payload
@@ -221,6 +251,74 @@ def verify_seed_executable(root: Path, lock: dict[str, object]) -> None:
         )
 
 
+def inspect_supplemental_archive(
+    path: Path, archive: dict[str, object], label: str
+) -> list[tuple[zipfile.ZipInfo, str]]:
+    verify_locked_file(path, archive, label)
+    expected = archive["members"]
+    assert isinstance(expected, dict)
+    maximum = require_int(
+        archive["max_uncompressed_bytes"], f"{label}.max_uncompressed_bytes", 1
+    )
+    entries: list[tuple[zipfile.ZipInfo, str]] = []
+    total = 0
+    try:
+        with zipfile.ZipFile(path) as source:
+            infos = source.infolist()
+            names = {normalized_member(info.filename) for info in infos}
+            if names != set(expected) or len(infos) != len(expected):
+                raise BootstrapError(f"{label} member set does not match its lock")
+            for info in infos:
+                member = normalized_member(info.filename)
+                if zip_entry_type(info) != stat.S_IFREG:
+                    raise BootstrapError(f"{label} contains a non-regular member: {member}")
+                total += info.file_size
+                if total > maximum:
+                    raise BootstrapError(f"{label} exceeds its uncompressed-size limit")
+                identity = expected[member]
+                assert isinstance(identity, dict)
+                expected_size = require_int(identity["size"], f"{label}.{member}.size", 1)
+                expected_sha = require_sha256(identity["sha256"], f"{label}.{member}.sha256")
+                digest = hashlib.sha256()
+                with source.open(info) as stream:
+                    while chunk := stream.read(1024 * 1024):
+                        digest.update(chunk)
+                if info.file_size != expected_size or digest.hexdigest() != expected_sha:
+                    raise BootstrapError(f"{label} member identity mismatch: {member}")
+                entries.append((info, member))
+    except (OSError, zipfile.BadZipFile, RuntimeError) as error:
+        if isinstance(error, BootstrapError):
+            raise
+        raise BootstrapError(f"invalid {label}: {error}") from error
+    return entries
+
+
+def install_supplemental_archive(
+    path: Path, destination: Path, archive: dict[str, object], label: str
+) -> None:
+    entries = inspect_supplemental_archive(path, archive, label)
+    with zipfile.ZipFile(path) as source:
+        for info, member in entries:
+            output = destination.joinpath(*member.split("/"))
+            output.parent.mkdir(parents=True, exist_ok=True)
+            if output.is_symlink() or output.parent.is_symlink():
+                raise BootstrapError(f"unsafe supplemental destination: {output}")
+            temporary = output.with_name(f".{output.name}.bootstrap-new")
+            if temporary.exists() or temporary.is_symlink():
+                raise BootstrapError(f"temporary supplemental file exists: {temporary}")
+            try:
+                with source.open(info) as reader, temporary.open("xb") as writer:
+                    shutil.copyfileobj(reader, writer, 1024 * 1024)
+                    writer.flush()
+                    os.fsync(writer.fileno())
+                temporary.chmod(0o644)
+                os.replace(temporary, output)
+            except BaseException:
+                if temporary.exists() and not temporary.is_symlink():
+                    temporary.unlink()
+                raise
+
+
 def extract_archive(path: Path, destination: Path, lock: dict[str, object]) -> None:
     entries, symlink_targets = inspect_archive(path, lock)
     if destination.exists() or destination.is_symlink():
@@ -319,8 +417,25 @@ def command_install(args: argparse.Namespace, lock: dict[str, object]) -> None:
     assert isinstance(manifest, dict) and isinstance(archive, dict)
     download_locked(manifest, manifest_path, "Valve manifest")
     download_locked(archive, archive_path, "seed archive")
-    extract_archive(archive_path, args.destination.resolve(), lock)
-    print(f"Steam ARM64 seed extracted: {args.destination.resolve()}")
+    destination = args.destination.resolve()
+    if not destination.exists():
+        extract_archive(archive_path, destination, lock)
+        print(f"Steam ARM64 seed extracted: {destination}")
+    else:
+        verify_seed_executable(destination, lock)
+    supplemental = lock.get("supplemental_archives", [])
+    assert isinstance(supplemental, list)
+    for section in supplemental:
+        assert isinstance(section, dict)
+        name = section["name"]
+        cache_name = section["cache_name"]
+        assert isinstance(name, str) and isinstance(cache_name, str)
+        supplemental_path = cache / cache_name
+        download_locked(section, supplemental_path, name)
+        install_supplemental_archive(
+            supplemental_path, destination, section, name
+        )
+        print(f"Installed locked Valve component: {name}")
     print("Run the seed through the project's native glibc loader to self-update.")
 
 

@@ -10,7 +10,7 @@ root=$(cd -- "$tool_dir/.." && pwd -P)
     exit 127
 }
 
-# Box64 and FEX deliberately share the normal Bionic prefix. The common
+# Box64 and FEX deliberately share the Steam-owned Bionic prefix. The common
 # launcher rewrites Wine's WoW64 CPU-module selection before every launch.
 export PROTON_BIONIC_CPU_BACKEND=fex
 exec "$root/proton-bionic-tool/proton" "$@"

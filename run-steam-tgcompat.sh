@@ -26,19 +26,34 @@ BROKER_SOCKET=$RUNTIME_DIR/broker.sock
 [[ -x $TGCOMPAT_REPO/build/tgcompatd ]]
 [[ -s $STEAM_LINUX_LIBS/MANIFEST.tsv ]]
 
-# Older development runs created absolute links into a PRoot Ubuntu tree.
-# Replace those aliases with the self-contained minimal runtime before any
-# Steam process starts; no PRoot installation is needed after packaging.
+# Some Valve helpers dlopen development SONAMEs at runtime. The glibc package
+# either omits those aliases or installs linker scripts that a runtime loader
+# cannot consume, so expose ordinary aliases inside this isolated glibc copy.
+for alias in \
+  libdl.so:libdl.so.2 \
+  libc.so:libc.so.6 \
+  libm.so:libm.so.6 \
+  libpthread.so:libpthread.so.0 \
+  librt.so:librt.so.1 \
+  libutil.so:libutil.so.1
+do
+  ln -sfn "${alias#*:}" "$GLIBC_PREFIX/lib/${alias%%:*}"
+done
+
+# Expose the self-contained minimal runtime beside Valve's binaries. Several
+# bundled objects use an $ORIGIN-only RPATH for their own transitive
+# dependencies, so the top-level loader path alone is insufficient.
 while IFS=$'\t' read -r library _kind _source; do
-  [[ -L $STEAM_DIR/$library ]] || continue
-  case $(readlink -- "$STEAM_DIR/$library") in
-    *proot-distro*) ln -sfn "../steam-linux-libs/$library" "$STEAM_DIR/$library" ;;
-  esac
+  [[ -n $library && -e $STEAM_LINUX_LIBS/$library ]] || continue
+  [[ ! -e $STEAM_DIR/$library || -L $STEAM_DIR/$library ]] || continue
+  ln -sfn "$STEAM_LINUX_LIBS/$library" "$STEAM_DIR/$library"
 done < "$STEAM_LINUX_LIBS/MANIFEST.tsv"
 
 install -d -m 0700 "$STEAM_HOME" "$STEAM_HOME/.steam" \
   "$STEAM_HOME/Steam" "$STEAM_HOME/steam" "$RUNTIME_DIR" "$RUNTIME_DIR/shm" \
   "$RUNTIME_DIR/dumps" "$RUNTIME_DIR/fontconfig-cache" \
+  "$CLIENT_ROOT/compatibilitytools.d" \
+  "$STEAM_HOME/Steam/compatibilitytools.d" \
   "$HERE/compatibilitytools.d" "$HERE/steam-sdkarm64" \
   "$HERE/steam-overlay-null/bin64"
 ln -sfn "$STEAM_HOME/Steam" "$STEAM_HOME/.steam/steam"
@@ -53,10 +68,14 @@ ln -sfn "$HERE/proton-bionic-tool" \
   "$HERE/compatibilitytools.d/Proton-Bionic-Termux"
 ln -sfn "$HERE/proton-bionic-tool" \
   "$STEAM_HOME/Steam/compatibilitytools.d/Proton-Bionic-Termux"
+ln -sfn "$HERE/proton-bionic-tool" \
+  "$CLIENT_ROOT/compatibilitytools.d/Proton-Bionic-Termux"
 ln -sfn "$HERE/proton-bionic-fex-tool" \
   "$HERE/compatibilitytools.d/Proton-Bionic-FEX-Termux"
 ln -sfn "$HERE/proton-bionic-fex-tool" \
   "$STEAM_HOME/Steam/compatibilitytools.d/Proton-Bionic-FEX-Termux"
+ln -sfn "$HERE/proton-bionic-fex-tool" \
+  "$CLIENT_ROOT/compatibilitytools.d/Proton-Bionic-FEX-Termux"
 # The glibc Hangover build is a separate optional runtime. Only advertise its
 # tool when that runtime is complete, so a clean installation never offers a
 # compatibility choice that is guaranteed to fail.
@@ -67,6 +86,8 @@ if [[ -x $HERE/hangover-glibc-11.9/wine-termux &&
     "$HERE/compatibilitytools.d/Proton-ARM64-glibc-Termux"
   ln -sfn "$HERE/proton-hangover-glibc-tool" \
     "$STEAM_HOME/Steam/compatibilitytools.d/Proton-ARM64-glibc-Termux"
+  ln -sfn "$HERE/proton-hangover-glibc-tool" \
+    "$CLIENT_ROOT/compatibilitytools.d/Proton-ARM64-glibc-Termux"
 fi
 # The updater resolves its bundled fonts relative to the patched executable.
 ln -sfn ../clientui "$STEAM_DIR/clientui"
@@ -78,6 +99,7 @@ ln -sfn "$STEAM_LINUX_LIBS/libedit.so.2" "$STEAM_DIR/libedit.so.2"
 export DISPLAY=${DISPLAY:-:0}
 export HOME=$STEAM_HOME
 export XDG_RUNTIME_DIR=$RUNTIME_DIR
+export XDG_CACHE_HOME=$RUNTIME_DIR
 export TMPDIR=/data/data/com.termux/files/usr/tmp
 export STEAM_TMP=$PREFIX/tmp
 export TGCOMPAT_SOCKET=$BROKER_SOCKET
@@ -89,8 +111,10 @@ export STEAM_ARM64_TMP_ROOT=$PREFIX/tmp
 export STEAM_ARM64_SHM_ROOT=$RUNTIME_DIR/shm
 export STEAM_ARM64_LSOF=$HERE/steam-native-lsof
 export STEAM_ARM64_CLIENT_ROOT=$CLIENT_ROOT
-export SSL_CERT_FILE=$MAIN_GLIBC/etc/ssl/certs/ca-certificates.crt
-export SSL_CERT_DIR=$MAIN_GLIBC/etc/ssl/certs
+install -m 0644 "$MAIN_GLIBC/etc/ssl/certs/ca-certificates.crt" \
+  "$RUNTIME_DIR/ca-certificates.crt"
+export SSL_CERT_FILE=$RUNTIME_DIR/ca-certificates.crt
+export SSL_CERT_DIR=$RUNTIME_DIR
 export CURL_CA_BUNDLE=$SSL_CERT_FILE
 export FONTCONFIG_FILE=$HERE/steam-fontconfig.conf
 export FONTCONFIG_PATH=$HERE
@@ -207,8 +231,13 @@ export STEAMUI_PATCHED=$STEAMUI_BIN
 export STEAMCLIENT_PATCHED=$STEAMCLIENT_BIN
 export CHROMEHTML_PATCHED=$CHROMEHTML_BIN
 export TGCOMPAT_PROC_SELF_EXE=$STEAM_BIN
+steam_update_args=()
+if [[ -f $CLIENT_ROOT/public/steambootstrapper_english.txt ]]; then
+  steam_update_args+=(-noverifyfiles)
+fi
 cd "$CLIENT_ROOT"
 exec "$MAIN_GLIBC/lib/ld-linux-aarch64.so.1" --inhibit-cache \
   --library-path "$LIBRARY_PATH" --argv0 "$STEAM_BIN" "$STEAM_BIN" \
-  -no-cef-sandbox -cef-disable-gpu -chromeosnopreallocate -noverifyfiles \
+  -no-cef-sandbox -cef-disable-gpu -chromeosnopreallocate \
+  "${steam_update_args[@]}" \
   -no-child-update-ui "$@"

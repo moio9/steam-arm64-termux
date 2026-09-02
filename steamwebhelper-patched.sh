@@ -3,6 +3,9 @@ set -eu
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 BASE=$(CDPATH= cd -- "$HERE/.." && pwd)
+if [ ! -d "$BASE/steam-linux-libs" ]; then
+    BASE=$(CDPATH= cd -- "$HERE/../.." && pwd)
+fi
 STEAM_LINUX_LIBS=$BASE/steam-linux-libs
 export FONTCONFIG_FILE="$BASE/steam-fontconfig.conf"
 export FONTCONFIG_PATH="$BASE"

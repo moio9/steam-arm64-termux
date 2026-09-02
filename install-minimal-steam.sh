@@ -45,6 +45,7 @@ required_files=(
     "$root/steamwebhelper-patched.sh"
     "$root/steam-native-lsof"
     "$root/steam-fontconfig.conf"
+    "$root/configure-steam-default-compat.py"
     "$client_root/steamrtarm64/steam"
     "$client_root/steamrtarm64/steamclient.so"
     "$client_root/steamrtarm64/steamui.so"

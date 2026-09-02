@@ -30,10 +30,27 @@ command -v pkg >/dev/null || {
 }
 pkg install -y python patchelf curl zstd
 
-if [[ ! -d $client_root/steamrtarm64 ]]; then
-    python3 "$bootstrap" --lock "$lock" install \
-        --cache "$cache_root/valve" --destination "$client_root"
-fi
+python3 "$bootstrap" --lock "$lock" install \
+    --cache "$cache_root/valve" --destination "$client_root"
+
+# The locked Valve depots are distributed through ZIP payloads, whose Unix
+# execute bits are not reliable after extraction on Android filesystems.
+client_executables=(
+    steam
+    steamwebhelper
+    steamsysinfo
+    reaper
+    gldriverquery
+    vulkandriverquery
+)
+for name in "${client_executables[@]}"; do
+    executable=$client_root/steamrtarm64/$name
+    [[ -f $executable && ! -L $executable ]] || {
+        printf 'Downloaded Valve executable is missing: %s\n' "$executable" >&2
+        exit 1
+    }
+    chmod 0755 -- "$executable"
+done
 
 python3 "$root/fetch-ubuntu-runtime.py" --cache "$cache_root/ubuntu-debs"
 "$root/fetch-proton-components.sh"
@@ -59,4 +76,7 @@ for name in "${support_files[@]}"; do
 done
 
 STEAM_ARM64_CLIENT_ROOT=$client_root "$root/install-minimal-steam.sh" "$@"
+python3 "$root/configure-steam-default-compat.py" \
+    --config "$root/steam-home/Steam/config/config.vdf" \
+    --marker "$root/.steam-arm64-default-compat-v1"
 printf '%s\n' 'Public bootstrap complete. Start Steam with ./run-public-steam.sh'

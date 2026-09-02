@@ -5,11 +5,11 @@ install_root=${STEAM_ARM64_INSTALL_DIR:-${HOME:?HOME is required}/.local/share/s
 runner=$install_root/run-public-steam.sh
 client=$install_root/valve-client/steamrtarm64/steam
 setup=/data/data/com.termux/files/usr/bin/steam-arm64-setup
-package_version=0.1.1
+package_release=0.1.2-5
 version_marker=$install_root/.steam-arm64-bootstrap-version
 
 if [[ -x $runner && -x $client && -f $version_marker &&
-      $(<"$version_marker") == "$package_version" ]]; then
+      $(<"$version_marker") == "$package_release" ]]; then
     exec "$runner" "$@"
 fi
 

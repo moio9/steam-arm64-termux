@@ -52,7 +52,8 @@ contents=(
     LICENSE PACKAGE-VERSION README-STEAM-ARM64.md THIRD-PARTY-NOTICES.md
     CONTRIBUTING.md LICENSING.md SOURCE-PROVENANCE.md
     licenses/GPL-2.0.txt licenses/LGPL-2.1.txt
-    bootstrap-public-steam.sh install-minimal-steam.sh
+    bootstrap-public-steam.sh configure-steam-default-compat.py
+    install-minimal-steam.sh
     make-public-package.sh make-public-release.sh make-public-source-tree.sh
     make-glibc-source-package.sh build-public-native.sh
     refresh-public-lsteamclient-patch.sh refresh-public-native-locks.sh

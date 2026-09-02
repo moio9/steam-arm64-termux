@@ -1,7 +1,10 @@
 glibc
+fontconfig
 libva-glibc
 libvdpau-glibc
 libx11-glibc
+libxss-glibc
 libxau-glibc
 libxcb-glibc
 libxdmcp-glibc
+ttf-dejavu

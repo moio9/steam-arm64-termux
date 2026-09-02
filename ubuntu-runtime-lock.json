@@ -296,6 +296,13 @@
       "raw_sha256": "9b8d0d8b10bdffc68f6699b03e7be99d4dc40552aca189be43b55c5f84753241"
     },
     {
+      "member": "usr/lib/aarch64-linux-gnu/libdecor-0.so.0.200.2",
+      "name": "libdecor-0.so.0",
+      "origin": "ubuntu-replacement",
+      "package": "libdecor-0-0",
+      "raw_sha256": null
+    },
+    {
       "member": "usr/lib/aarch64-linux-gnu/libdrm.so.2.4.0",
       "name": "libdrm.so.2",
       "origin": "bundled-graphics",
@@ -737,6 +744,13 @@
       "raw_sha256": "b972e84100fc6043a30bf626808e712d7647f841d2c59a0ade2f5cba76061bdb"
     },
     {
+      "member": "usr/lib/aarch64-linux-gnu/libsamplerate.so.0.2.2",
+      "name": "libsamplerate.so.0",
+      "origin": "ubuntu-replacement",
+      "package": "libsamplerate0",
+      "raw_sha256": null
+    },
+    {
       "member": "usr/lib/aarch64-linux-gnu/libselinux.so.1",
       "name": "libselinux.so.1",
       "origin": "bundled-ubuntu",
@@ -1159,6 +1173,16 @@
       "size": 209930,
       "url": "https://snapshot.ubuntu.com/ubuntu/20250429T000000Z/pool/main/d/dbus/libdbus-1-3_1.14.10-4ubuntu4.1_arm64.deb",
       "version": "1.14.10-4ubuntu4.1"
+    },
+    {
+      "architecture": "arm64",
+      "copyright_member": "usr/share/doc/libdecor-0-0/copyright",
+      "filename": "pool/main/libd/libdecor-0/libdecor-0-0_0.2.2-1build2_arm64.deb",
+      "name": "libdecor-0-0",
+      "sha256": "561403959907cbdb8b73a836373cca5ec2380b81723ad73698e9ba460ec08b69",
+      "size": 16536,
+      "url": "https://snapshot.ubuntu.com/ubuntu/20250429T000000Z/pool/main/libd/libdecor-0/libdecor-0-0_0.2.2-1build2_arm64.deb",
+      "version": "0.2.2-1build2"
     },
     {
       "architecture": "arm64",
@@ -1759,6 +1783,16 @@
       "size": 270832,
       "url": "https://snapshot.ubuntu.com/ubuntu/20250429T000000Z/pool/main/p/pulseaudio/libpulse0_16.1+dfsg1-2ubuntu10.1_arm64.deb",
       "version": "1:16.1+dfsg1-2ubuntu10.1"
+    },
+    {
+      "architecture": "arm64",
+      "copyright_member": "usr/share/doc/libsamplerate0/copyright",
+      "filename": "pool/main/libs/libsamplerate/libsamplerate0_0.2.2-4build1_arm64.deb",
+      "name": "libsamplerate0",
+      "sha256": "b19c04f6bbbf6fe9a59bf0697dff0d35b5e70351e72681bf9c74053e49e4fedd",
+      "size": 1342758,
+      "url": "https://snapshot.ubuntu.com/ubuntu/20250429T000000Z/pool/main/libs/libsamplerate/libsamplerate0_0.2.2-4build1_arm64.deb",
+      "version": "0.2.2-4build1"
     },
     {
       "architecture": "arm64",

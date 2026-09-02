@@ -1,4 +1,4 @@
-#!/data/data/com.termux/files/home/Downloads/bins_linuxarm64_linuxarm64/steam-sdkarm64/bash
+#!/data/data/com.termux/files/home/.local/share/steam-arm64-termux/steam-sdkarm64/bash
 set -euo pipefail
 unset LD_PRELOAD LD_LIBRARY_PATH
 

@@ -27,10 +27,20 @@ DEFAULT_INDEX_SETS = (
 # These two SONAMEs originally came from Valve's optional runtime.  Public
 # builds deliberately replace them with ordinary Ubuntu packages.
 REPLACEMENTS = {
+    "libdecor-0.so.0": {
+        "package": "libdecor-0-0",
+        "version": "0.2.2-1build2",
+        "member": "usr/lib/aarch64-linux-gnu/libdecor-0.so.0.200.2",
+    },
     "libSDL2-2.0.so.0": {
         "package": "libsdl2-2.0-0",
         "version": "2.30.0+dfsg-1ubuntu3.1",
         "member": "usr/lib/aarch64-linux-gnu/libSDL2-2.0.so.0.3000.0",
+    },
+    "libsamplerate.so.0": {
+        "package": "libsamplerate0",
+        "version": "0.2.2-4build1",
+        "member": "usr/lib/aarch64-linux-gnu/libsamplerate.so.0.2.2",
     },
     "libssh2.so.1": {
         "package": "libssh2-1t64",

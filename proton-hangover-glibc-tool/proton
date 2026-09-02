@@ -68,15 +68,10 @@ prepare_steam() {
     local steam_dir=$prefix/drive_c/Program\ Files\ \(x86\)/Steam
     local steamclient=$legacy/steamclient.dll
     install -d -m 0700 -- "$steam_dir"
-    # Always use Steam's current legacy-compat client. NMRiH's bundled 2022
-    # client starts, but cannot authenticate against the current Steam session.
+    # Always use Steam's current legacy-compat clients rather than copies
+    # bundled with individual games.
     install -m 0600 -- "$steamclient" "$steam_dir/steamclient.dll"
-    if [[ ${SteamAppId:-${SteamGameId:-0}} == 224260 ]]; then
-        [[ ! -f $steam_dir/steamclient64.dll ]] ||
-            mv -f -- "$steam_dir/steamclient64.dll" "$steam_dir/steamclient64.dll.disabled-nmrih"
-    else
-        install -m 0600 -- "$legacy/steamclient64.dll" "$steam_dir/steamclient64.dll"
-    fi
+    install -m 0600 -- "$legacy/steamclient64.dll" "$steam_dir/steamclient64.dll"
     install -m 0600 -- "$legacy/Steam.dll" "$steam_dir/Steam.dll"
     install -m 0700 -- "$legacy/SteamService.exe" "$steam_dir/steam.exe"
     install -m 0600 -- "$runtime/usr/lib/wine/i386-windows/lsteamclient.dll" \

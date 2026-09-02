@@ -84,6 +84,7 @@ files=(
     '.github/workflows/glibc-runtime.yml|.github/workflows/glibc-runtime.yml|0644'
 
     'bootstrap-public-steam.sh|bootstrap-public-steam.sh|0755'
+    'configure-steam-default-compat.py|configure-steam-default-compat.py|0755'
     'build-public-native.sh|build-public-native.sh|0755'
     'fetch-proton-components.sh|fetch-proton-components.sh|0755'
     'fetch-ubuntu-runtime.py|fetch-ubuntu-runtime.py|0755'
@@ -109,6 +110,7 @@ files=(
     'packaging/steam-arm64/release.lock|packaging/steam-arm64/release.lock|0644'
     'packaging/steam-arm64/steam-arm64|packaging/steam-arm64/steam-arm64|0755'
     'packaging/steam-arm64/steam-arm64-setup|packaging/steam-arm64/steam-arm64-setup|0755'
+    'packaging/steam-arm64/steam-arm64-uninstall|packaging/steam-arm64/steam-arm64-uninstall|0755'
     'packaging/steam-arm64/steam-arm64.desktop|packaging/steam-arm64/steam-arm64.desktop|0644'
     'packaging/steam-arm64/steam-arm64-termux.svg|packaging/steam-arm64/steam-arm64-termux.svg|0644'
 
