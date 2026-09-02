@@ -353,14 +353,24 @@ prepare_steam_compat() {
         printf '%s\n' 'proton-bionic-termux: Steam legacycompat payload is missing' >&2
         return 1
     }
-    install -m 0600 -- "$steamclient_source" "$virtual_steam/steamclient.dll"
+    if [[ $steam_bridge == direct || $steam_bridge == proxy ]]; then
+        # steam_api.dll resolves SteamClientDll from this registered Steam
+        # directory. Point that facade at Wine's lsteamclient proxy itself;
+        # Valve's legacy steamclient.dll additionally needs tier0_s.dll and
+        # vstdlib_s.dll, which are not shipped by every game/client layout.
+        install -m 0600 -- "$lsteamclient_pe" "$virtual_steam/steamclient.dll"
+    else
+        install -m 0600 -- "$steamclient_source" "$virtual_steam/steamclient.dll"
+    fi
     install -m 0600 -- "$legacy_steamclient64" "$virtual_steam/steamclient64.dll"
     install -m 0600 -- "$legacycompat/Steam.dll" "$virtual_steam/Steam.dll"
     install -m 0700 -- "$legacycompat/SteamService.exe" "$virtual_steam/steam.exe"
-    for steam_dep in tier0_s.dll vstdlib_s.dll; do
-        [[ -f $launch_workdir/bin/$steam_dep ]] || continue
-        install -m 0600 -- "$launch_workdir/bin/$steam_dep" "$virtual_steam/$steam_dep"
-    done
+    if [[ $steam_bridge == legacy ]]; then
+        for steam_dep in tier0_s.dll vstdlib_s.dll; do
+            [[ -f $launch_workdir/bin/$steam_dep ]] || continue
+            install -m 0600 -- "$launch_workdir/bin/$steam_dep" "$virtual_steam/$steam_dep"
+        done
+    fi
 
     # Present the active native Steam library below the Windows Steam path.
     # This keeps SteamPath and the game's module path on C:, as expected by
