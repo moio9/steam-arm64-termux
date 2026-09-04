@@ -2,7 +2,7 @@ Origin: Steam ARM64 for Termux
 Label: Steam ARM64 for Termux
 Suite: stable
 Codename: stable
-Date: Fri, 04 Sep 2026 22:40:00 +0000
+Date: Fri, 04 Sep 2026 18:44:09 +0000
 Architectures: aarch64
 Components: main
 Description: Native ARM64 Steam packages for Termux
