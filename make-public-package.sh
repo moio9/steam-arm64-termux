@@ -57,6 +57,7 @@ contents=(
     make-public-package.sh make-public-release.sh make-public-source-tree.sh
     make-glibc-source-package.sh build-public-native.sh
     refresh-public-lsteamclient-patch.sh refresh-public-native-locks.sh
+    make-hangover-steamswap-deb.sh
     generate-ubuntu-runtime-lock.py
     run-public-steam.sh run-steam.sh run-steam-tgcompat.sh
     fetch-ubuntu-runtime.py ubuntu-runtime-lock.json
@@ -87,6 +88,7 @@ contents=(
     steam-bridge/proton-functions.sh steam-bridge/run-server.sh
     steam-bridge/lsteambridge-client steam-bridge/lsteambridge-server
     public-source/glibc public-source/native public-source/lsteamclient
+    public-source/hangover-steamswap
     .gitattributes .gitignore
 )
 native_sources=(
@@ -148,6 +150,18 @@ patch = lsteam_root / "patches/0001-termux-arm64-bridge.patch"
 actual_patch = hashlib.sha256(patch.read_bytes()).hexdigest()
 if len(expected_patch) != 64 or actual_patch != expected_patch:
     raise SystemExit("public lsteamclient patch checksum is stale")
+
+hangover_root = root / "public-source/hangover-steamswap"
+hangover_lock = {}
+for line in (hangover_root / "source.lock").read_text().splitlines():
+    if "=" in line and not line.lstrip().startswith("#"):
+        key, value = line.split("=", 1)
+        hangover_lock[key] = value
+expected_hangover_patch = hangover_lock.get("PATCH_SHA256", "")
+hangover_patch = hangover_root / "patches/0001-steamclient-swap-arm64.patch"
+actual_hangover_patch = hashlib.sha256(hangover_patch.read_bytes()).hexdigest()
+if len(expected_hangover_patch) != 64 or actual_hangover_patch != expected_hangover_patch:
+    raise SystemExit("public Hangover Steam-swap patch checksum is stale")
 PY
 
 for forbidden in \

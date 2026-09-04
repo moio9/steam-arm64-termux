@@ -4,6 +4,9 @@ set -euo pipefail
 root=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
 project=$(cd -- "$root/.." && pwd -P)
 client_root=${STEAM_ARM64_CLIENT_ROOT:-$project}
+if [[ -z ${STEAM_ARM64_CLIENT_ROOT:-} && -d $project/valve-client/steamrtarm64 ]]; then
+    client_root=$project/valve-client
+fi
 [[ $client_root == /* && -d $client_root/steamrtarm64 ]] || {
     printf 'lsteambridge: invalid Steam client root: %s\n' "$client_root" >&2
     exit 1

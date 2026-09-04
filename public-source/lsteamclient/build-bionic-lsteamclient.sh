@@ -19,6 +19,7 @@ list_header=$deps_dir/include/wine/list.h
 ntdll=$wine_root/lib/wine/aarch64-unix/ntdll.so
 obj_dir=
 output_tmp=
+pe_tmp_dir=
 compile_pids=()
 
 die()
@@ -34,11 +35,12 @@ cleanup()
     for pid in "${compile_pids[@]}"; do wait "$pid" 2>/dev/null || true; done
     if [[ -n $output_tmp && -e $output_tmp ]]; then rm -f -- "$output_tmp"; fi
     if [[ -n $obj_dir && -d $obj_dir ]]; then rm -rf -- "$obj_dir"; fi
+    if [[ -n $pe_tmp_dir && -d $pe_tmp_dir ]]; then rm -rf -- "$pe_tmp_dir"; fi
 }
 trap cleanup EXIT HUP INT TERM
 
 [[ $jobs =~ ^[1-9][0-9]*$ ]] || die "invalid JOBS value: $jobs"
-for command in "$cxx" git sha256sum file readelf mktemp; do
+for command in "$cxx" git sha256sum file readelf strings mktemp; do
     command -v "$command" >/dev/null 2>&1 || die "missing command: $command"
 done
 [[ -d $checkout/.git ]] || die "run prepare-proton-source.sh first: $checkout"
@@ -53,6 +55,7 @@ printf '%s  %s\n' "$WINE_LIST_SHA256" "$list_header" |
 [[ -d $wine_root/include/wine/windows ]] ||
     die "missing Hangover Wine headers below: $wine_root"
 [[ -f $ntdll ]] || die "missing Hangover ntdll.so: $ntdll"
+[[ -x $wine_root/bin/winegcc ]] || die "missing Hangover winegcc: $wine_root/bin/winegcc"
 
 mkdir -p -- "$build_dir/include/wine"
 install -m 0644 -- "$list_header" "$build_dir/include/wine/list.h"
@@ -115,6 +118,21 @@ chmod 0755 "$output_tmp"
 mv -- "$output_tmp" "$build_dir/lsteamclient.so"
 output_tmp=
 
+pe_tmp_dir=$(mktemp -d "$build_dir/.pe.XXXXXX")
+"$wine_root/bin/winegcc" --target=i686-windows -m32 -O2 -Wno-pragma-pack \
+    -shared -Wl,--wine-builtin -D__WINESRC__ -D__WINE_PE_BUILD \
+    -DSTEAM_API_EXPORTS -Dprivate=public -Dprotected=public \
+    -DLSTEAM_BRIDGE_PROXY -I"$build_dir/include" -I"$wine_root/include" \
+    -I"$src" -o "$pe_tmp_dir/lsteamclient.dll" "$src"/*.c \
+    "$src/lsteamclient.spec" -luser32 -lws2_32
+install -m 0644 -- "$pe_tmp_dir/lsteamclient.dll" "$build_dir/lsteamclient.dll"
+rm -rf -- "$pe_tmp_dir"
+pe_tmp_dir=
+
 file "$build_dir/lsteamclient.so"
 readelf -d "$build_dir/lsteamclient.so" | grep -E 'NEEDED|SONAME'
 sha256sum "$build_dir/lsteamclient.so"
+file "$build_dir/lsteamclient.dll"
+strings "$build_dir/lsteamclient.dll" | grep -Fx 'Wine builtin DLL' >/dev/null ||
+    die 'lsteamclient.dll is not a Wine builtin PE module'
+sha256sum "$build_dir/lsteamclient.dll"

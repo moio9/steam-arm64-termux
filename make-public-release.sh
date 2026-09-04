@@ -129,6 +129,7 @@ run_checks()
         bootstrap-public-steam.sh
         install-minimal-steam.sh
         make-termux-deb.sh
+        make-hangover-steamswap-deb.sh
         make-apt-repository.sh
         setup-apt-repository.sh
         make-public-package.sh

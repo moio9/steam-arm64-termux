@@ -2,8 +2,6 @@
 set -euo pipefail
 umask 022
 
-deb=${1:-}
-output=${2:-}
 source_epoch=${SOURCE_DATE_EPOCH:-1788134400}
 
 die() {
@@ -11,31 +9,44 @@ die() {
     exit 1
 }
 
-[[ $deb == /* && -f $deb && ! -L $deb && $output == /* ]] ||
-    die 'usage: ./make-apt-repository.sh /absolute/package.deb /absolute/new-directory'
-[[ ! -e $output && ! -L $output ]] || die "refusing to overwrite: $output"
+(($# >= 2)) || die 'usage: ./make-apt-repository.sh /absolute/package.deb [...] /absolute/new-directory'
+last_index=$#
+output=${!last_index}
+debs=("${@:1:last_index-1}")
+[[ $output == /* && ! -e $output && ! -L $output ]] ||
+    die 'output must be an absolute new directory'
 for tool in dpkg-deb sha256sum stat gzip install find touch date; do
     command -v "$tool" >/dev/null 2>&1 || die "missing tool: $tool"
 done
 
-package=$(dpkg-deb -f "$deb" Package)
-version=$(dpkg-deb -f "$deb" Version)
-architecture=$(dpkg-deb -f "$deb" Architecture)
-[[ $package == steam-arm64 && $architecture == aarch64 ]] ||
-    die 'unexpected package identity'
-filename=pool/main/s/steam-arm64/steam-arm64_${version}_aarch64.deb
 binary_dir=$output/dists/stable/main/binary-aarch64
-install -d -m 0755 -- "$output/${filename%/*}" "$binary_dir"
-install -m 0644 -- "$deb" "$output/$filename"
+install -d -m 0755 "$binary_dir"
+packages_file=$binary_dir/Packages
+: >"$packages_file"
 
-{
-    dpkg-deb -f "$deb"
-    printf 'Filename: %s\n' "$filename"
-    printf 'Size: %s\n' "$(stat -c %s "$deb")"
-    printf 'SHA256: %s\n\n' "$(sha256sum "$deb" | cut -d' ' -f1)"
-} > "$binary_dir/Packages"
-gzip -n -9 -c "$binary_dir/Packages" > "$binary_dir/Packages.gz"
+for deb in "${debs[@]}"; do
+    [[ $deb == /* && -f $deb && ! -L $deb ]] || die "invalid package: $deb"
+    package=$(dpkg-deb -f "$deb" Package)
+    version=$(dpkg-deb -f "$deb" Version)
+    architecture=$(dpkg-deb -f "$deb" Architecture)
+    [[ $architecture == aarch64 ]] || die "unexpected architecture for $deb"
+    case $package in
+        steam-arm64|hangover-wine-steamswap) ;;
+        *) die "unexpected package identity: $package" ;;
+    esac
+    filename=pool/main/${package:0:1}/$package/${package}_${version}_aarch64.deb
+    install -d -m 0755 "$output/${filename%/*}"
+    install -m 0644 "$deb" "$output/$filename"
+    {
+        dpkg-deb -f "$deb"
+        printf 'Filename: %s\n' "$filename"
+        printf 'Size: %s\n' "$(stat -c %s "$deb")"
+        printf 'SHA256: %s\n\n' "$(sha256sum "$deb" | cut -d' ' -f1)"
+    } >>"$packages_file"
+    printf 'Package: %s %s %s\n' "$package" "$version" "$architecture"
+done
 
+gzip -n -9 -c "$packages_file" >"$binary_dir/Packages.gz"
 release=$output/dists/stable/Release
 {
     printf '%s\n' 'Origin: Steam ARM64 for Termux'
@@ -52,9 +63,9 @@ release=$output/dists/stable/Release
         printf ' %s %16s %s\n' "$(sha256sum "$file" | cut -d' ' -f1)" \
             "$(stat -c %s "$file")" "$relative"
     done
-} > "$release"
+} >"$release"
 
-cat > "$output/index.html" <<'EOF'
+cat >"$output/index.html" <<'EOF'
 <!doctype html>
 <meta charset="utf-8">
 <title>Steam ARM64 for Termux repository</title>
@@ -62,7 +73,6 @@ cat > "$output/index.html" <<'EOF'
 <p>Configure this APT repository using the instructions in the
 <a href="https://github.com/moio9/steam-arm64-termux">project repository</a>.</p>
 EOF
-: > "$output/.nojekyll"
+: >"$output/.nojekyll"
 find "$output" -exec touch -h -d "@$source_epoch" {} +
-printf 'Created APT repository: %s\nPackage: %s %s %s\n' \
-    "$output" "$package" "$version" "$architecture"
+printf 'Created APT repository: %s\n' "$output"

@@ -335,10 +335,14 @@ configure_cpu_backend() {
 
 prepare_steam_compat() {
     local appid steamclient_source steamapps_dir common_link manifest_source
+    local game_dir_name windows_game_root active_process_pid
+    local process_name process_pid ignored
     appid=${SteamAppId:-${SteamGameId:-0}}
     [[ $appid != 0 ]] || return 0
     steamclient_source=$legacycompat/steamclient.dll
-    if [[ $steam_bridge == legacy && -f $launch_workdir/bin/steamclient.dll ]]; then
+    if [[ $steam_bridge == direct && -f $lsteamclient_pe ]]; then
+        steamclient_source=$lsteamclient_pe
+    elif [[ $steam_bridge == legacy && -f $launch_workdir/bin/steamclient.dll ]]; then
         steamclient_source=$launch_workdir/bin/steamclient.dll
     fi
 
@@ -383,6 +387,13 @@ prepare_steam_compat() {
         fi
     fi
 
+    if [[ $steam_library_mapped == 1 && $appid == 22380 ]]; then
+        game_dir_name=${launch_workdir##*/}
+        windows_game_root="C:\\Program Files (x86)\\Steam\\steamapps\\common\\$game_dir_name"
+        "$wine" reg add 'HKLM\Software\Bethesda Softworks\FalloutNV' /v 'Installed Path' /t REG_SZ \
+            /d "$windows_game_root\\" /f /reg:32 >/dev/null
+    fi
+
     if [[ $steam_bridge == direct || $steam_bridge == proxy ]]; then
         [[ -f $lsteamclient_pe ]] || {
             printf '%s\n' 'proton-bionic-termux: Hangover Steam proxy payload is missing' >&2
@@ -413,8 +424,18 @@ prepare_steam_compat() {
         /d 'C:\Program Files (x86)\Steam' /f >/dev/null
     "$wine" reg add 'HKCU\Software\Valve\Steam' /v SteamExe /t REG_SZ \
         /d 'C:\Program Files (x86)\Steam\steam.exe' /f >/dev/null
+    active_process_pid=0xfffe
+    while IFS=, read -r process_name process_pid ignored; do
+        process_name=${process_name//\"/}
+        process_pid=${process_pid//\"/}
+        process_pid=${process_pid//$'\r'/}
+        if [[ $process_name == services.exe && $process_pid =~ ^[0-9]+$ ]]; then
+            active_process_pid=$process_pid
+            break
+        fi
+    done < <("$wine" tasklist /fo csv /nh 2>/dev/null)
     "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v PID \
-        /t REG_DWORD /d 0xfffe /f >/dev/null
+        /t REG_DWORD /d "$active_process_pid" /f >/dev/null
     "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v SteamPath \
         /t REG_SZ /d 'C:\Program Files (x86)\Steam' /f >/dev/null
     "$wine" reg add 'HKCU\Software\Valve\Steam\ActiveProcess' /v SteamClientDll \
@@ -450,6 +471,11 @@ case $verb in
         else
             "$wine" "${launch_args[@]}"
             status=$?
+            # A launcher can spawn the real game as a separate Wine process
+            # and exit immediately. Keep the Steam bridge alive until those
+            # child processes are gone, otherwise legacy Steam DRM loses its
+            # client while the game is still starting.
+            "$wineserver" -w >/dev/null 2>&1 || true
         fi
         set -e
         trap - EXIT

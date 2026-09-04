@@ -73,7 +73,7 @@ Version: $PACKAGE_VERSION-$PACKAGE_REVISION
 Architecture: aarch64
 Maintainer: moio9 <noreply@github.com>
 Installed-Size: $installed_size
-Depends: bash, coreutils, curl, python, zstd, patchelf
+Depends: bash, coreutils, curl, python, zstd, patchelf, git, clang, binutils, hangover-wine-steamswap (= 11.9-1)
 Section: games
 Priority: optional
 Homepage: https://github.com/moio9/steam-arm64-termux

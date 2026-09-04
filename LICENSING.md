@@ -38,11 +38,18 @@ the upstream files it modifies.  Project-authored additions remain subject to
 any third-party rights required to compile or use them with Proton and
 Steamworks.
 
+## Hangover loader overlay
+
+The APT repository's `hangover-wine-steamswap` package contains four rebuilt
+LGPL Wine artifacts. The exact Hangover 11.9 revision, project patch, artifact
+hashes, rebuild notes and LGPL-2.1 text are published with the project; the
+base Hangover package remains an external dependency.
+
 ## Download-only components
 
-Valve's Steam client, Ubuntu packages, DXVK, vkd3d-proton, Hangover Wine, and
-Box64/FEX components are not relicensed by this project.  The bootstrap either
-downloads them directly from their upstream publishers using locked hashes or
+Valve's Steam client, Ubuntu packages, DXVK, vkd3d-proton, the base Hangover
+Wine package, and Box64/FEX components are not relicensed by this project.
+The bootstrap either downloads them directly from their upstream publishers using locked hashes or
 installs them through configured package repositories.  Their own license and
 service terms continue to apply.
 

@@ -3,7 +3,7 @@ set -euo pipefail
 umask 022
 
 root=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
-repo=$root/proton-lsteamclient-src
+repo=${LSTEAM_MAINTAINER_CHECKOUT:-$root/proton-lsteamclient-src}
 metadata=$root/public-source/lsteamclient
 lock=$metadata/source.lock
 patch=$metadata/patches/0001-termux-arm64-bridge.patch

@@ -1,0 +1,241 @@
+diff --git a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
+index 7a2b69f..6eadf24 100644
+--- a/dlls/ntdll/loader.c
++++ b/dlls/ntdll/loader.c
+@@ -85,7 +85,7 @@ const WCHAR windows_dir[] = L"C:\\windows";
+ static const WCHAR system_dir[] = L"C:\\windows\\system32\\";
+ 
+ /* system search path */
+-static const WCHAR system_path[] = L"C:\\windows\\system32;C:\\windows\\system;C:\\windows";
++static const WCHAR system_path[] = L"C:\\windows\\system32;C:\\windows\\system;C:\\windows;C:\\Program Files (x86)\\Steam";
+ 
+ static BOOL is_prefix_bootstrap;  /* are we bootstrapping the prefix? */
+ static BOOL imports_fixup_done = FALSE;  /* set once the imports have been fixed up, before attaching them */
+@@ -2253,12 +2253,15 @@ static NTSTATUS build_module( LPCWSTR load_path, const UNICODE_STRING *nt_name,
+                               DWORD flags, BOOL system, BOOL redirected, WINE_MODREF **pwm )
+ {
+     static const char builtin_signature[] = "Wine builtin DLL";
++    static WINE_MODREF *lsteamclient = NULL;
+     char *signature = (char *)((IMAGE_DOS_HEADER *)*module + 1);
+     BOOL is_builtin;
+     IMAGE_NT_HEADERS *nt;
+     WINE_MODREF *wm;
+     NTSTATUS status;
+     SIZE_T map_size;
++    WCHAR *basename, *tmp;
++    ULONG basename_len;
+ 
+     if (!(nt = RtlImageNtHeader( *module ))) return STATUS_INVALID_IMAGE_FORMAT;
+ 
+@@ -2280,6 +2283,32 @@ static NTSTATUS build_module( LPCWSTR load_path, const UNICODE_STRING *nt_name,
+ 
+     update_load_config( *module );
+ 
++    basename = nt_name->Buffer;
++    if ((tmp = wcsrchr(basename, '\\'))) basename = tmp + 1;
++    if ((tmp = wcsrchr(basename, '/'))) basename = tmp + 1;
++    basename_len = wcslen(basename);
++    if (basename_len >= 4 && !wcscmp(basename + basename_len - 4, L".dll")) basename_len -= 4;
++
++    if ((!RtlCompareUnicodeStrings(basename, basename_len, L"steamclient", 11, TRUE) ||
++         !RtlCompareUnicodeStrings(basename, basename_len, L"steamclient64", 13, TRUE) ||
++         !RtlCompareUnicodeStrings(basename, basename_len, L"gameoverlayrenderer", 19, TRUE) ||
++         !RtlCompareUnicodeStrings(basename, basename_len, L"gameoverlayrenderer64", 21, TRUE)) &&
++        (lsteamclient || load_dll(load_path, L"lsteamclient.dll", 0, &lsteamclient, FALSE) == STATUS_SUCCESS))
++    {
++        struct steamclient_setup_trampolines_params params =
++        {
++            .src_mod = (UINT_PTR)*module,
++            .tgt_mod = (UINT_PTR)lsteamclient->ldr.DllBase
++        };
++        add_module_dependency( wm->ldr.DdagNode, lsteamclient->ldr.DdagNode );
++        process_attach( lsteamclient->ldr.DdagNode, NULL );
++        lsteamclient->ldr.LoadCount = -1; /* keep the cached MODREF valid across source unloads */
++        WINE_UNIX_CALL( unix_steamclient_setup_trampolines, &params );
++        wm->ldr.EntryPoint = NULL;
++        wm->ldr.Flags &= ~LDR_DONT_RESOLVE_REFS;
++        flags |= DONT_RESOLVE_DLL_REFERENCES;
++    }
++
+     /* fixup imports */
+ 
+     if (!(flags & LDR_DONT_RESOLVE_REFS) &&
+diff --git a/dlls/ntdll/unix/loader.c b/dlls/ntdll/unix/loader.c
+index c1e6b58..4690ced 100644
+--- a/dlls/ntdll/unix/loader.c
++++ b/dlls/ntdll/unix/loader.c
+@@ -1007,6 +1007,102 @@ static NTSTATUS unwind_builtin_dll( void *args )
+ 
+ #endif /* SO_DLLS_SUPPORTED */
+ 
++static void *steamclient_srcs[128];
++static void *steamclient_tgts[128];
++static int steamclient_count;
++
++void *steamclient_handle_fault( LPCVOID addr, DWORD err )
++{
++    int i;
++
++    if (!(err & EXCEPTION_EXECUTE_FAULT)) return NULL;
++
++    for (i = 0; i < steamclient_count; ++i)
++    {
++        if (addr == steamclient_srcs[i])
++            return steamclient_tgts[i];
++    }
++
++    return NULL;
++}
++
++static ULONG_PTR find_named_export( HMODULE module, const IMAGE_EXPORT_DIRECTORY *exports,
++                                    const char *name );
++static const void *get_module_data_dir( HMODULE module, ULONG dir, ULONG *size );
++
++static void steamclient_write_jump( void *src_addr, void *tgt_addr, BOOL is_64bit )
++{
++    BYTE *code = src_addr;
++    UINT_PTR target = (UINT_PTR)tgt_addr;
++    unsigned int i;
++
++    if (is_64bit)
++    {
++        code[0] = 0x48;
++        code[1] = 0xb8;
++        for (i = 0; i < 8; ++i) code[2 + i] = target >> (8 * i);
++        code[10] = 0xff;
++        code[11] = 0xe0;
++    }
++    else
++    {
++        INT32 relative = (INT32)(target - ((UINT_PTR)src_addr + 5));
++        code[0] = 0xe9;
++        for (i = 0; i < 4; ++i) code[1 + i] = (UINT32)relative >> (8 * i);
++    }
++}
++
++static NTSTATUS steamclient_setup_trampolines( void *args )
++{
++    static int noexec_cached = -1;
++    struct steamclient_setup_trampolines_params *params = args;
++    HMODULE src_mod = (HMODULE)(UINT_PTR)params->src_mod;
++    HMODULE tgt_mod = (HMODULE)(UINT_PTR)params->tgt_mod;
++    SYSTEM_BASIC_INFORMATION info;
++    IMAGE_NT_HEADERS32 *src_nt32 = (IMAGE_NT_HEADERS32 *)((UINT_PTR)src_mod + ((IMAGE_DOS_HEADER *)src_mod)->e_lfanew);
++    IMAGE_FILE_HEADER *src_file = &src_nt32->FileHeader;
++    BOOL is_64bit = src_nt32->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
++    IMAGE_SECTION_HEADER *src_sec = (IMAGE_SECTION_HEADER *)((BYTE *)&src_nt32->OptionalHeader + src_file->SizeOfOptionalHeader);
++    const IMAGE_EXPORT_DIRECTORY *src_exp, *tgt_exp;
++    const DWORD *names;
++    SIZE_T size;
++    void *addr, *src_addr, *tgt_addr;
++    char *name, *wsne;
++    UINT_PTR page_mask;
++    int i;
++
++    if (noexec_cached == -1)
++        noexec_cached = (wsne = getenv("WINESTEAMNOEXEC")) && atoi(wsne);
++
++    virtual_get_system_info( &info, !!NtCurrentTeb()->WowTebOffset );
++    page_mask = info.PageSize - 1;
++
++    for (i = 0; i < src_file->NumberOfSections; ++i)
++    {
++        if (memcmp(src_sec[i].Name, ".text", 5)) continue;
++        addr = (void *)(((UINT_PTR)src_mod + src_sec[i].VirtualAddress) & ~page_mask);
++        size = (src_sec[i].Misc.VirtualSize + page_mask) & ~page_mask;
++        if (noexec_cached) mprotect(addr, size, PROT_READ);
++        else mprotect(addr, size, PROT_READ|PROT_WRITE|PROT_EXEC);
++    }
++
++    src_exp = get_module_data_dir( src_mod, IMAGE_FILE_EXPORT_DIRECTORY, NULL );
++    tgt_exp = get_module_data_dir( tgt_mod, IMAGE_FILE_EXPORT_DIRECTORY, NULL );
++    names = (const DWORD *)((UINT_PTR)src_mod + src_exp->AddressOfNames);
++    for (i = 0; i < src_exp->NumberOfNames; ++i)
++    {
++        if (!names[i] || !(name = (char *)((UINT_PTR)src_mod + names[i]))) continue;
++        if (!(src_addr = (void *)find_named_export(src_mod, src_exp, name))) continue;
++        if (!(tgt_addr = (void *)find_named_export(tgt_mod, tgt_exp, name))) continue;
++        assert(steamclient_count < ARRAY_SIZE(steamclient_srcs));
++        steamclient_srcs[steamclient_count] = src_addr;
++        steamclient_tgts[steamclient_count] = tgt_addr;
++        if (!noexec_cached) steamclient_write_jump( src_addr, tgt_addr, is_64bit );
++        else steamclient_count++;
++    }
++
++    return STATUS_SUCCESS;
++}
+ 
+ static const unixlib_entry_t unix_call_funcs[] =
+ {
+@@ -1018,6 +1114,7 @@ static const unixlib_entry_t unix_call_funcs[] =
+     unixcall_wine_server_handle_to_fd,
+     unixcall_wine_spawnvp,
+     system_time_precise,
++    steamclient_setup_trampolines,
+ };
+ 
+ 
+@@ -1036,6 +1133,7 @@ const unixlib_entry_t unix_call_wow64_funcs[] =
+     wow64_wine_server_handle_to_fd,
+     wow64_wine_spawnvp,
+     system_time_precise,
++    steamclient_setup_trampolines,
+ };
+ 
+ #endif  /* _WIN64 */
+diff --git a/dlls/ntdll/unixlib.h b/dlls/ntdll/unixlib.h
+index 9cb4443..3b3b608 100644
+--- a/dlls/ntdll/unixlib.h
++++ b/dlls/ntdll/unixlib.h
+@@ -66,6 +66,12 @@ struct unwind_builtin_dll_params
+     CONTEXT                    *context;
+ };
+ 
++struct steamclient_setup_trampolines_params
++{
++    UINT64 src_mod;
++    UINT64 tgt_mod;
++};
++
+ enum ntdll_unix_funcs
+ {
+     unix_load_so_dll,
+@@ -76,6 +82,7 @@ enum ntdll_unix_funcs
+     unix_wine_server_handle_to_fd,
+     unix_wine_spawnvp,
+     unix_system_time_precise,
++    unix_steamclient_setup_trampolines,
+ };
+ 
+ extern unixlib_handle_t __wine_unixlib_handle;
+diff --git a/server/mapping.c b/server/mapping.c
+index 2ee4831..53b6009 100644
+--- a/server/mapping.c
++++ b/server/mapping.c
+@@ -392,7 +392,7 @@ static int create_temp_file( file_pos_t size )
+     char tmpfn[16];
+     int fd;
+ 
+-#if defined(HAVE_MEMFD_CREATE) && defined(MFD_EXEC)
++#if defined(HAVE_MEMFD_CREATE) && defined(MFD_EXEC) && !defined(__ANDROID__)
+     if ((fd = memfd_create( "wine-mapping", MFD_EXEC )) != -1)
+     {
+         if (grow_file( fd, size )) return fd;
+@@ -881,6 +881,7 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
+ {
+     static const char builtin_signature[] = "Wine builtin DLL";
+     static const char fakedll_signature[] = "Wine placeholder DLL";
++    static const char valve_signature[] = {'V','L','V',0,1,0,0,0};
+ 
+     IMAGE_COR20_HEADER clr;
+     IMAGE_SECTION_HEADER *sec;
+@@ -1036,7 +1037,8 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
+     if (mapping->image.alignment & page_mask)
+         mapping->image.image_flags |= IMAGE_FLAGS_ImageMappedFlat;
+     else if ((mapping->image.dll_charact & IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) &&
+-             (has_relocs || mapping->image.contains_code) && !clr_dir)
++             (has_relocs || mapping->image.contains_code) && !clr_dir &&
++             memcmp( mz.buffer, valve_signature, sizeof(valve_signature) ))
+         mapping->image.image_flags |= IMAGE_FLAGS_ImageDynamicallyRelocated;
+ 
+     align_mask = max( mapping->image.alignment - 1, page_mask );

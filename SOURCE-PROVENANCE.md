@@ -1,7 +1,7 @@
 # Source and build provenance
 
 This document identifies the exact upstream revisions used by the current
-`steam-arm64-termux 0.1.0-dev` development build.  A public binary release must
+`steam-arm64-termux 0.1.3` release.  A public binary release must
 be generated from these revisions or update this file, its lock files, and all
 corresponding-source archives together.
 
@@ -10,6 +10,7 @@ corresponding-source archives together.
 | Component | Upstream | Pinned revision |
 | --- | --- | --- |
 | Valve Proton source used for `lsteamclient` patches | <https://github.com/ValveSoftware/Proton> | `db9e6ffbf24a95b104fb699dd62532c70a2f9a51` (`proton-11.0-2`) |
+| Hangover Wine source used for the Steam-swap loader overlay | <https://github.com/AndreRH/wine> | `2e8ad15d5b7b87ef0e1520bf9fec2ecfb31fd1b1` (`hangover-11.9`) |
 | Termux glibc package recipe and tgcompat integration | <https://github.com/moio9/glibc-packages> | `99eb8c36733165debd70255ce60c86d2155b61c1`, branch `tgcompat-glibc-2.44` |
 | Termux glibc packages base | <https://github.com/termux/glibc-packages> | `954c6b200aa001088fcc420550b9304dd81229b8` |
 | tgcompat source | <https://github.com/huntergdavis/termux-glibc-compat> | `8d63206ac60eb1106cb5303f1ac75f5a3bd60a62` |
@@ -39,8 +40,13 @@ redistributed by this project:
 - Ubuntu ARM64 packages, pinned by `ubuntu-runtime-lock.json`;
 - DXVK 1.10.3 and vkd3d-proton 3.0.1, pinned by
   `fetch-proton-components.sh`;
-- Hangover Wine and its Box64/FEX packages, installed from configured Termux
-  package repositories.
+- the base Hangover Wine 11.9 and its Box64/FEX packages, installed from
+  configured Termux package repositories.
+
+The project APT repository separately distributes four rebuilt LGPL Wine
+loader artifacts in `hangover-wine-steamswap`. Their exact source revision,
+patch and output hashes are recorded in
+`public-source/hangover-steamswap/source.lock`.
 
 ## Publication rule
 

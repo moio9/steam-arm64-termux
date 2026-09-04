@@ -31,7 +31,9 @@ XFCE/LXQt application menu, and an original project icon. The first launch opens
 the verified bootstrap in a terminal; later launches open Steam directly.
 User data and downloaded Valve files remain below
 `~/.local/share/steam-arm64-termux`, so removing the package never deletes a
-Steam account, installed games, or credentials.
+Steam account, installed games, or credentials. The APT package also installs
+the version-locked `hangover-wine-steamswap` overlay required by legacy Steam
+DRM; it intentionally depends on `hangover-wine 11.9`.
 
 Steam registers two Bionic compatibility choices for Windows games:
 
@@ -82,9 +84,9 @@ hashes. None of these upstream binaries are mirrored in the public archive.
 
 The installer obtains ordinary dependencies with `pkg`, prepares the pinned
 Valve Proton source without copying any `steamworks_sdk_*` directory, builds
-the custom `lsteamclient.so` bridge locally, installs it into Hangover, and
-validates the existing Vulkan ICD. It does not install a Linux distribution or
-`proot-distro`.
+the custom Unix and PE `lsteamclient` bridge modules locally, installs them
+into Hangover, and validates the existing Vulkan ICD. It does not install a
+Linux distribution or `proot-distro`.
 
 Use `./install-minimal-steam.sh --check` to validate an existing installation,
 or `--skip-packages` when all official packages are already installed and only
@@ -103,7 +105,9 @@ development and legacy Proton experiments are intentionally omitted.
 - `steam-linux-libs` is assembled locally from verified Ubuntu snapshot `.deb`
   files and contains the ABI-coherent Linux closure needed by Steam. Its
   generated manifest lists every file and origin.
-- Hangover Wine and its Box64 backend come from `pkg`; they are not bundled.
+- Hangover Wine and its Box64 backend come from `pkg`. The project APT
+  repository supplies a small, source-locked Hangover 11.9 loader overlay for
+  legacy Steam DRM; the base Hangover package is not bundled.
 - `lsteambridge` uses a same-UID, mode-0600 Unix socket to connect Wine's
   Bionic `lsteamclient` proxy to the authenticated native Steam session.
 - No password, login token, or Steam credential crosses the bridge or belongs

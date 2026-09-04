@@ -82,6 +82,8 @@ required_files=(
     "$root/public-source/lsteamclient/build-bionic-lsteamclient.sh"
     "$root/public-source/lsteamclient/source.lock"
     "$root/public-source/lsteamclient/patches/0001-termux-arm64-bridge.patch"
+    "$root/public-source/hangover-steamswap/source.lock"
+    "$root/public-source/hangover-steamswap/patches/0001-steamclient-swap-arm64.patch"
     "$root/steam-sdkarm64/steam-launch-wrapper"
     "$root/steam-legacy-tmp-shim.so"
     "$root/steam-proc-self-shim.so"
@@ -114,8 +116,8 @@ if (( ! check_only && ! skip_packages )); then
         bash coreutils diffutils findutils patchelf perl
         curl python zstd git clang binutils file
         glibc-runner bash-glibc ca-certificates-glibc
-        hangover-wine hangover-wowbox64 hangover-libarm64ecfex
-        hangover-libwow64fex
+        hangover-wine hangover-wine-steamswap
+        hangover-wowbox64 hangover-libarm64ecfex hangover-libwow64fex
     )
     while IFS= read -r package; do
         [[ -n $package ]] && packages+=("$package")
@@ -138,11 +140,13 @@ wine_root=$termux_prefix/opt/hangover-wine
 wine_launcher=/data/data/com.termux/files/home/bin/hangover-wine
 vulkan_icd=$termux_prefix/share/vulkan/icd.d/freedreno_icd.aarch64.json
 lsteam_target=$wine_root/lib/wine/aarch64-unix/lsteamclient.so
+lsteam_pe_target=$wine_root/lib/wine/i386-windows/lsteamclient.dll
 lsteam_public=$root/public-source/lsteamclient
 lsteam_work_root=${LSTEAM_WORK_ROOT:-$lsteam_public/work}
 lsteam_checkout=${PROTON_CHECKOUT:-$lsteam_work_root/proton}
 lsteam_build_dir=${LSTEAM_BUILD_DIR:-$lsteam_work_root/build}
 lsteam_artifact=$lsteam_build_dir/lsteamclient.so
+lsteam_pe_artifact=$lsteam_build_dir/lsteamclient.dll
 lsteam_patch=$lsteam_public/patches/0001-termux-arm64-bridge.patch
 # shellcheck source=/dev/null
 . "$lsteam_public/source.lock"
@@ -155,6 +159,26 @@ printf '%s  %s\n' "$PATCH_SHA256" "$lsteam_patch" |
         printf '%s\n' 'The public lsteamclient patch does not match source.lock.' >&2
         exit 1
     }
+
+hangover_public=$root/public-source/hangover-steamswap
+hangover_lock=$hangover_public/source.lock
+hangover_patch=$hangover_public/patches/0001-steamclient-swap-arm64.patch
+(
+    # Keep the Hangover lock variables separate from the lsteamclient lock.
+    # shellcheck source=/dev/null
+    . "$hangover_lock"
+    printf '%s  %s\n%s  %s\n%s  %s\n%s  %s\n%s  %s\n' \
+        "$PATCH_SHA256" "$hangover_patch" \
+        "$WINESERVER_SHA256" "$wine_root/bin/wineserver" \
+        "$NTDLL_SO_SHA256" "$wine_root/lib/wine/aarch64-unix/ntdll.so" \
+        "$NTDLL_I386_SHA256" "$wine_root/lib/wine/i386-windows/ntdll.dll" \
+        "$NTDLL_AARCH64_SHA256" "$wine_root/lib/wine/aarch64-windows/ntdll.dll" |
+        sha256sum -c - >/dev/null
+) || {
+    printf '%s\n' 'Hangover 11.9 is missing the Steam DRM loader overlay.' >&2
+    printf '%s\n' 'Install hangover-wine-steamswap=11.9-1 from the project APT repository.' >&2
+    exit 1
+}
 
 [[ -x $wine_launcher && -x $wine_root/bin/wineserver &&
    -f $wine_root/lib/wine/i386-windows/lsteamclient.dll &&
@@ -171,7 +195,8 @@ printf '%s  %s\n' "$PATCH_SHA256" "$lsteam_patch" |
     exit 1
 }
 
-if (( check_only )) && { [[ ! -f $lsteam_artifact ]] || [[ -L $lsteam_artifact ]]; }; then
+if (( check_only )) && { [[ ! -f $lsteam_artifact ]] || [[ -L $lsteam_artifact ]] ||
+                              [[ ! -f $lsteam_pe_artifact ]] || [[ -L $lsteam_pe_artifact ]]; }; then
     printf 'The locally built lsteamclient artifact is missing: %s\n' \
         "$lsteam_artifact" >&2
     printf '%s\n' 'Run ./install-minimal-steam.sh to fetch its pinned source and build it locally.' >&2
@@ -179,6 +204,11 @@ if (( check_only )) && { [[ ! -f $lsteam_artifact ]] || [[ -L $lsteam_artifact ]
 fi
 if (( check_only )) && ! cmp -s -- "$lsteam_artifact" "$lsteam_target"; then
     printf '%s\n' 'The installed Hangover lsteamclient bridge does not match this package.' >&2
+    printf '%s\n' 'Run ./install-minimal-steam.sh to install it.' >&2
+    exit 1
+fi
+if (( check_only )) && ! cmp -s -- "$lsteam_pe_artifact" "$lsteam_pe_target"; then
+    printf '%s\n' 'The installed Hangover lsteamclient PE module does not match this package.' >&2
     printf '%s\n' 'Run ./install-minimal-steam.sh to install it.' >&2
     exit 1
 fi
@@ -206,9 +236,10 @@ if (( ! check_only )); then
         "$lsteam_public/prepare-proton-source.sh"
     fi
     "$lsteam_public/build-bionic-lsteamclient.sh"
-    [[ -f $lsteam_artifact && ! -L $lsteam_artifact ]] || {
-        printf 'Local lsteamclient build did not produce: %s\n' \
-            "$lsteam_artifact" >&2
+    [[ -f $lsteam_artifact && ! -L $lsteam_artifact &&
+       -f $lsteam_pe_artifact && ! -L $lsteam_pe_artifact ]] || {
+        printf 'Local lsteamclient build did not produce both artifacts:\n%s\n%s\n' \
+            "$lsteam_artifact" "$lsteam_pe_artifact" >&2
         exit 1
     }
 
@@ -217,6 +248,10 @@ if (( ! check_only )); then
         cp -p -- "$lsteam_target" "$lsteam_target.before-steam-arm64"
     fi
     install -m 0755 -- "$lsteam_artifact" "$lsteam_target"
+    if [[ -f $lsteam_pe_target && ! -e $lsteam_pe_target.before-steam-arm64 ]]; then
+        cp -p -- "$lsteam_pe_target" "$lsteam_pe_target.before-steam-arm64"
+    fi
+    install -m 0644 -- "$lsteam_pe_artifact" "$lsteam_pe_target"
     chmod 0700 "$root/run-steam.sh" "$root/run-steam-tgcompat.sh" \
         "$root/steamwebhelper-patched.sh" "$root/proton-bionic-tool/proton" \
         "$root/proton-bionic-tool/steam-runtime-steam-remote" \

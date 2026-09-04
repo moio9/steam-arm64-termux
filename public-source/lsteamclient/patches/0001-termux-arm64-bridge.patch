@@ -148,6 +148,40 @@ index 4731e73e27526e26003abb07b1e413c0841aa9eb..8bcd9ef41a4200ae53e89838f0f6d17a
  }
  #endif
 -
+diff --git a/lsteamclient/steamclient_main.c b/lsteamclient/steamclient_main.c
+index 07c4120c05634379e7c0b155e0d6cd9b693083d9..4698953e708b83432d871bd71eb7397c1b4c3642 100644
+--- a/lsteamclient/steamclient_main.c
++++ b/lsteamclient/steamclient_main.c
+@@ -68,7 +68,7 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
+             __wine_init_unix_call();
+             break;
+         case DLL_PROCESS_DETACH:
+-            CloseHandle(steam_overlay_event);
++            if (steam_overlay_event) CloseHandle(steam_overlay_event);
+             if (wsa_initialized)
+             {
+                 WSACleanup();
+diff --git a/lsteamclient/steamclient_structs.h b/lsteamclient/steamclient_structs.h
+index fec3621166949d574ce9952b35ee6c29af4f01eb..c01cfcff3aaf13c36aa1b417cb9fee530085a424 100644
+--- a/lsteamclient/steamclient_structs.h
++++ b/lsteamclient/steamclient_structs.h
+@@ -99,7 +99,15 @@ struct u_iface
+     UINT64 handle;
+ #ifdef __cplusplus
+     struct u_iface &operator=( const void* value ) { this->handle = (UINT_PTR)value; return *this; }
+-    template< typename T > operator T*() const { return (T*)(UINT_PTR)this->handle; }
++    template< typename T > operator T*() const
++    {
++#ifdef LSTEAM_BRIDGE_PROXY
++        extern void *lsteam_bridge_resolve_iface( UINT64 handle );
++        return (T *)lsteam_bridge_resolve_iface( this->handle );
++#else
++        return (T *)(UINT_PTR)this->handle;
++#endif
++    }
+ #endif /* __cplusplus */
+ };
+ 
 diff --git a/lsteamclient/unix_steam_matchmaking_manual.cpp b/lsteamclient/unix_steam_matchmaking_manual.cpp
 index ad48b4523154cda219adf51ec7355c5883372db3..f7bf29e88d2da987ec5343c38c124e09d535bcb6 100644
 --- a/lsteamclient/unix_steam_matchmaking_manual.cpp
@@ -428,21 +462,32 @@ index 470e47331e311bad3b1f2bd41e164fa890177b85..0a9fc285f876a019d8fec0fb1adb1277
      if (params->pArg && (u_fn = wrap_callback_cdecl<153>( params->eValue, &w_callback_ptr )))
      {
 diff --git a/lsteamclient/unixlib.cpp b/lsteamclient/unixlib.cpp
-index 9d63e030ca167eaf65e4db45868b4285bab33f9b..d4ccef349ef8afbb1752d61e33aa37f8bac6bc4d 100644
+index 9d63e030ca167eaf65e4db45868b4285bab33f9b..c58e8e0621d1747312b22ab9815272774a0cb814 100644
 --- a/lsteamclient/unixlib.cpp
 +++ b/lsteamclient/unixlib.cpp
-@@ -325,6 +325,10 @@ static int8_t (*p_Steam_GetAPICallResult)( int32_t, uint64_t, void *, int, int,
+@@ -325,6 +325,21 @@ static int8_t (*p_Steam_GetAPICallResult)( int32_t, uint64_t, void *, int, int,
  static int8_t (*p_Steam_FreeLastCallback)( int32_t );
  static void (*p_Steam_ReleaseThreadLocalMemory)( int );
  static bool (*p_Steam_IsKnownInterface)( const char * );
 +
 +#ifdef LSTEAM_BRIDGE_PROXY
 +#include "bridge_proxy.inc"
++
++void *lsteam_bridge_resolve_iface( UINT64 handle )
++{
++    if (handle == 1 && getenv( "LSTEAM_BRIDGE_MODE" ) &&
++        !strcmp( getenv( "LSTEAM_BRIDGE_MODE" ), "proxy" ))
++        return &bridge_utils5;
++    if (handle == 2 && getenv( "LSTEAM_BRIDGE_MODE" ) &&
++        !strcmp( getenv( "LSTEAM_BRIDGE_MODE" ), "proxy" ))
++        return &bridge_lobby8;
++    return (void *)(UINT_PTR)handle;
++}
 +#endif
  static void (*p_Steam_NotifyMissingInterface)( int32_t, const char * );
  
  template< typename Params >
-@@ -341,7 +345,8 @@ static NTSTATUS steamclient_Steam_BGetCallback( Params *params, bool wow64 )
+@@ -341,7 +356,8 @@ static NTSTATUS steamclient_Steam_BGetCallback( Params *params, bool wow64 )
          TRACE( "id %d, u_size %d.\n", u_msg->m_iCallback, u_msg->m_cubParam );
          w_msg->m_hSteamUser = u_msg->m_hSteamUser;
          w_msg->m_iCallback = u_msg->m_iCallback;
@@ -452,7 +497,7 @@ index 9d63e030ca167eaf65e4db45868b4285bab33f9b..d4ccef349ef8afbb1752d61e33aa37f8
          params->cookie = (UINT_PTR)u_msg;
          params->_ret = true;
      }
-@@ -359,7 +364,7 @@ static NTSTATUS steamclient_callback_message_receive( Params *params, bool wow64
+@@ -359,7 +375,7 @@ static NTSTATUS steamclient_callback_message_receive( Params *params, bool wow64
  
      convert_callback_utow( u_msg->m_iCallback, (void *)u_msg->m_pubParam,
                             u_msg->m_cubParam, (void *)w_msg->m_pubParam,
@@ -461,7 +506,7 @@ index 9d63e030ca167eaf65e4db45868b4285bab33f9b..d4ccef349ef8afbb1752d61e33aa37f8
      if (w_msg->m_iCallback == 703 /* SteamAPICallCompleted_t::k_iCallback */)
      {
          SteamAPICallCompleted_t_137 *c = (SteamAPICallCompleted_t_137 *)u_msg->m_pubParam;
-@@ -369,7 +374,7 @@ static NTSTATUS steamclient_callback_message_receive( Params *params, bool wow64
+@@ -369,7 +385,7 @@ static NTSTATUS steamclient_callback_message_receive( Params *params, bool wow64
          {
              int len;
  
@@ -470,7 +515,7 @@ index 9d63e030ca167eaf65e4db45868b4285bab33f9b..d4ccef349ef8afbb1752d61e33aa37f8
              TRACE( "SteamAPICallCompleted_t id %d, size %d -> %d.\n", c->m_iCallback, c->m_cubParam, len );
              w->m_cubParam = len;
          }
-@@ -396,14 +401,18 @@ static NTSTATUS steamclient_Steam_GetAPICallResult( Params *params, bool wow64 )
+@@ -396,14 +412,18 @@ static NTSTATUS steamclient_Steam_GetAPICallResult( Params *params, bool wow64 )
      int u_callback_len = params->w_callback_len;
      void *u_callback;
  
@@ -491,7 +536,7 @@ index 9d63e030ca167eaf65e4db45868b4285bab33f9b..d4ccef349ef8afbb1752d61e33aa37f8
          free( u_callback );
      }
  
-@@ -702,12 +711,19 @@ static void setup_proton_soundfonts( u_ISteamClient_SteamClient017 *client, int
+@@ -702,12 +722,19 @@ static void setup_proton_soundfonts( u_ISteamClient_SteamClient017 *client, int
      free(dos_path);
  }
  
@@ -511,7 +556,7 @@ index 9d63e030ca167eaf65e4db45868b4285bab33f9b..d4ccef349ef8afbb1752d61e33aa37f8
      client = (u_ISteamClient_SteamClient017 *)p_CreateInterface( "SteamClient017", &error );
      if (!(pipe = client->CreateSteamPipe()) || !(user = client->ConnectToGlobalUser( pipe )))
      {
-@@ -746,6 +762,28 @@ static NTSTATUS steamclient_init( Params *params, bool wow64 )
+@@ -746,6 +773,28 @@ static NTSTATUS steamclient_init( Params *params, bool wow64 )
      sync_env_var( "IgnoreChildProcesses", params->ignore_child_processes_unset, params->ignore_child_processes );
  
      if (steamclient) return 0;
@@ -1028,10 +1073,10 @@ index 0000000000000000000000000000000000000000..6cd798e42196dde0a1a797ef9b8528eb
 +}
 diff --git a/lsteamclient/bridge_client008_proxy.inc b/lsteamclient/bridge_client008_proxy.inc
 new file mode 100644
-index 0000000000000000000000000000000000000000..bf3dc870b75d105419dcf6aa4265f825367d69c9
+index 0000000000000000000000000000000000000000..67a459fb7e684a1dcc6ac1b7035356b052dd300c
 --- /dev/null
 +++ b/lsteamclient/bridge_client008_proxy.inc
-@@ -0,0 +1,197 @@
+@@ -0,0 +1,206 @@
 +/* Exact Bionic-side SteamClient008 ABI adapter.
 + *
 + * Keep every entry explicitly typed and in the order declared by
@@ -1112,6 +1157,8 @@ index 0000000000000000000000000000000000000000..bf3dc870b75d105419dcf6aa4265f825
 +                                               const char *version )
 +{
 +    bridge_trace( "SteamClient008::GetISteamMatchmaking" );
++    if (version && !strcmp( version, "SteamMatchMaking008" ))
++        return &bridge_lobby8;
 +    if (version && !strcmp( version, "SteamMatchMaking009" ))
 +        return &bridge_lobby;
 +    return NULL;
@@ -1147,6 +1194,8 @@ index 0000000000000000000000000000000000000000..bf3dc870b75d105419dcf6aa4265f825
 +                                              const char *version )
 +{
 +    bridge_trace( "SteamClient008::GetISteamUserStats" );
++    if (version && !strcmp( version, "STEAMUSERSTATS_INTERFACE_VERSION007" ))
++        return &bridge_user_stats7;
 +    if (version && !strcmp( version, "STEAMUSERSTATS_INTERFACE_VERSION011" ))
 +        return &bridge_user_stats11;
 +    if (version && !strcmp( version, "STEAMUSERSTATS_INTERFACE_VERSION012" ))
@@ -1165,6 +1214,8 @@ index 0000000000000000000000000000000000000000..bf3dc870b75d105419dcf6aa4265f825
 +                                              const char *version )
 +{
 +    bridge_trace( "SteamClient008::GetISteamNetworking" );
++    if (version && !strcmp( version, "SteamNetworking003" ))
++        return &bridge_networking3;
 +    if (version && (!strcmp( version, "SteamNetworking005" ) ||
 +                    !strcmp( version, "SteamNetworking006" )))
 +        return &bridge_networking;
@@ -1175,6 +1226,9 @@ index 0000000000000000000000000000000000000000..bf3dc870b75d105419dcf6aa4265f825
 +                                                  const char *version )
 +{
 +    bridge_trace( "SteamClient008::GetISteamRemoteStorage" );
++    if (version && !strcmp( version,
++                            "STEAMREMOTESTORAGE_INTERFACE_VERSION002" ))
++        return &bridge_remote_storage2;
 +    if (version && !strcmp( version,
 +                            "STEAMREMOTESTORAGE_INTERFACE_VERSION011" ))
 +        return &bridge_remote_storage11;
@@ -4812,10 +4866,10 @@ index 0000000000000000000000000000000000000000..505a84b9da74a35186c6027216960c67
 +}
 diff --git a/lsteamclient/bridge_proxy.inc b/lsteamclient/bridge_proxy.inc
 new file mode 100644
-index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa48369976
+index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56aa857673
 --- /dev/null
 +++ b/lsteamclient/bridge_proxy.inc
-@@ -0,0 +1,1380 @@
+@@ -0,0 +1,1489 @@
 +#include "protocol.h"
 +#include <stdarg.h>
 +#include <stdio.h>
@@ -4827,7 +4881,8 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +struct bridge_proxy_object { void **vtable; };
 +
 +static struct lsteam_bridge_response bridge_status;
-+static bridge_proxy_object bridge_client, bridge_client008, bridge_client13;
++static bridge_proxy_object bridge_client, bridge_client008, bridge_client009;
++static bridge_proxy_object bridge_client13;
 +static bridge_proxy_object bridge_client14;
 +static bridge_proxy_object bridge_client15, bridge_client16, bridge_client17;
 +static bridge_proxy_object bridge_client18, bridge_client19, bridge_client21;
@@ -4837,14 +4892,14 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +static bridge_proxy_object bridge_friends;
 +static bridge_proxy_object bridge_friends13, bridge_friends14;
 +static bridge_proxy_object bridge_game_server, bridge_game_server12;
-+static bridge_proxy_object bridge_utils, bridge_apps, bridge_apps5, bridge_generic;
++static bridge_proxy_object bridge_utils, bridge_utils5, bridge_apps, bridge_apps5, bridge_generic;
 +static bridge_proxy_object bridge_matchmaking_servers;
-+static bridge_proxy_object bridge_lobby;
-+static bridge_proxy_object bridge_remote_storage;
++static bridge_proxy_object bridge_lobby, bridge_lobby8;
++static bridge_proxy_object bridge_remote_storage, bridge_remote_storage2;
 +static bridge_proxy_object bridge_remote_storage11;
-+static bridge_proxy_object bridge_networking;
++static bridge_proxy_object bridge_networking, bridge_networking3;
 +static bridge_proxy_object bridge_game_server_stats;
-+static bridge_proxy_object bridge_user_stats, bridge_user_stats11;
++static bridge_proxy_object bridge_user_stats, bridge_user_stats11, bridge_user_stats7;
 +static bridge_proxy_object bridge_ugc14, bridge_ugc15;
 +static bridge_proxy_object bridge_http, bridge_http1;
 +static bridge_proxy_object bridge_inventory, bridge_inventory1, bridge_inventory2;
@@ -4856,6 +4911,7 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +static bridge_proxy_object bridge_network_utils3, bridge_network_utils4;
 +static bridge_proxy_object bridge_html, bridge_app_ticket;
 +static void *bridge_client_vtable[64], *bridge_client008_vtable[21];
++static void *bridge_client009_vtable[22];
 +static void *bridge_client13_vtable[64];
 +static void *bridge_client14_vtable[64], *bridge_client15_vtable[64];
 +static void *bridge_client16_vtable[64], *bridge_client17_vtable[64];
@@ -4867,15 +4923,18 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +static void *bridge_user15_vtable[32];
 +static void *bridge_friends_vtable[128], *bridge_friends13_vtable[128];
 +static void *bridge_friends14_vtable[128], *bridge_utils_vtable[128];
++static void *bridge_utils5_vtable[23];
 +static void *bridge_apps_vtable[128], *bridge_apps5_vtable[128];
 +static void *bridge_generic_vtable[128];
 +static void *bridge_matchmaking_servers_vtable[32];
-+static void *bridge_lobby_vtable[64];
++static void *bridge_lobby_vtable[64], *bridge_lobby8_vtable[36];
 +static void *bridge_remote_storage_vtable[64];
 +static void *bridge_remote_storage11_vtable[64];
-+static void *bridge_networking_vtable[32];
++static void *bridge_remote_storage2_vtable[7];
++static void *bridge_networking_vtable[32], *bridge_networking3_vtable[20];
 +static void *bridge_game_server_stats_vtable[16];
 +static void *bridge_user_stats_vtable[64], *bridge_user_stats11_vtable[64];
++static void *bridge_user_stats7_vtable[30];
 +static void *bridge_ugc14_vtable[96], *bridge_ugc15_vtable[96];
 +static void *bridge_http_vtable[32], *bridge_http1_vtable[16];
 +static void *bridge_inventory_vtable[48];
@@ -5068,6 +5127,7 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +static void *bridge_get_utils( void *, int32_t, const char *version )
 +{
 +    bridge_trace( "GetISteamUtils %s", version ? version : "(null)" );
++    if (version && !strcmp( version, "SteamUtils005" )) return &bridge_utils5;
 +    return &bridge_utils;
 +}
 +static void *bridge_get_game_server( void *, int32_t, int32_t, const char *version )
@@ -5084,7 +5144,8 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    if (version && !strcmp( version,
 +                            "STEAMAPPTICKET_INTERFACE_VERSION001" ))
 +        return &bridge_app_ticket;
-+    if (version && !strncmp( version, "SteamUtils", 10 )) return &bridge_utils;
++    if (version && !strncmp( version, "SteamUtils", 10 ))
++        return bridge_get_utils( NULL, 0, version );
 +    if (version && !strncmp( version, "SteamUser", 9 ))
 +        return bridge_get_user( NULL, 0, 0, version );
 +    if (version && !strncmp( version, "SteamFriends", 12 ))
@@ -5093,12 +5154,18 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +        return bridge_get_apps( NULL, 0, 0, version );
 +    if (version && !strcmp( version, "SteamMatchMakingServers002" ))
 +        return &bridge_matchmaking_servers;
++    if (version && !strcmp( version, "SteamMatchMaking008" ))
++        return &bridge_lobby8;
 +    if (version && !strcmp( version, "SteamMatchMaking009" ))
 +        return &bridge_lobby;
 +    if (version && !strcmp( version, "STEAMREMOTESTORAGE_INTERFACE_VERSION014" ))
 +        return &bridge_remote_storage;
++    if (version && !strcmp( version, "STEAMREMOTESTORAGE_INTERFACE_VERSION002" ))
++        return &bridge_remote_storage2;
 +    if (version && !strcmp( version, "STEAMREMOTESTORAGE_INTERFACE_VERSION011" ))
 +        return &bridge_remote_storage11;
++    if (version && !strcmp( version, "SteamNetworking003" ))
++        return &bridge_networking3;
 +    if (version && (!strcmp( version, "SteamNetworking006" ) ||
 +                    !strcmp( version, "SteamNetworking005" )))
 +        return &bridge_networking;
@@ -5106,6 +5173,8 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +        return &bridge_game_server_stats;
 +    if (version && !strcmp( version, "STEAMUSERSTATS_INTERFACE_VERSION012" ))
 +        return &bridge_user_stats;
++    if (version && !strcmp( version, "STEAMUSERSTATS_INTERFACE_VERSION007" ))
++        return &bridge_user_stats7;
 +    if (version && !strcmp( version, "STEAMUSERSTATS_INTERFACE_VERSION011" ))
 +        return &bridge_user_stats11;
 +    if (version && !strcmp( version, "STEAMUGC_INTERFACE_VERSION014" ))
@@ -5156,6 +5225,43 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +
 +#include "bridge_client008_proxy.inc"
 +#include "bridge_appticket_proxy.inc"
++
++/* SteamClient009 inserts GetISteamGameServerStats before GetISteamApps.
++ * Reusing a newer ISteamClient vtable shifts every following method and makes
++ * Fallout: New Vegas call the wrong functions. */
++static void *bridge_client009_get_game_server_stats( void *self, int32_t user,
++                                                      int32_t pipe,
++                                                      const char *version )
++{
++    bridge_trace( "SteamClient009::GetISteamGameServerStats" );
++    return bridge_get_generic( self, user, pipe, version );
++}
++
++static void bridge_init_client009_layout( void **vtable )
++{
++    vtable[0] = (void *)bridge_client008_create_steam_pipe;
++    vtable[1] = (void *)bridge_client008_release_steam_pipe;
++    vtable[2] = (void *)bridge_client008_connect_global_user;
++    vtable[3] = (void *)bridge_client008_create_local_user;
++    vtable[4] = (void *)bridge_client008_release_user;
++    vtable[5] = (void *)bridge_client008_get_user;
++    vtable[6] = (void *)bridge_client008_get_game_server;
++    vtable[7] = (void *)bridge_client008_set_local_ip_binding;
++    vtable[8] = (void *)bridge_client008_get_friends;
++    vtable[9] = (void *)bridge_client008_get_utils;
++    vtable[10] = (void *)bridge_client008_get_matchmaking;
++    vtable[11] = (void *)bridge_client008_get_master_server_updater;
++    vtable[12] = (void *)bridge_client008_get_matchmaking_servers;
++    vtable[13] = (void *)bridge_client008_get_generic;
++    vtable[14] = (void *)bridge_client008_get_user_stats;
++    vtable[15] = (void *)bridge_client009_get_game_server_stats;
++    vtable[16] = (void *)bridge_client008_get_apps;
++    vtable[17] = (void *)bridge_client008_get_networking;
++    vtable[18] = (void *)bridge_client008_get_remote_storage;
++    vtable[19] = (void *)bridge_client008_run_frame;
++    vtable[20] = (void *)bridge_client008_get_ipc_call_count;
++    vtable[21] = (void *)bridge_client008_set_warning_hook;
++}
 +
 +static void bridge_fill_vtable( void **vtable, size_t count )
 +{
@@ -5244,8 +5350,12 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_fill_vtable( bridge_client_vtable, ARRAY_SIZE(bridge_client_vtable) );
 +    static_assert( ARRAY_SIZE(bridge_client008_vtable) == 21,
 +                   "SteamClient008 must have exactly 21 ABI slots" );
++    static_assert( ARRAY_SIZE(bridge_client009_vtable) == 22,
++                   "SteamClient009 must have exactly 22 ABI slots" );
 +    bridge_fill_vtable( bridge_client008_vtable,
 +                        ARRAY_SIZE(bridge_client008_vtable) );
++    bridge_fill_vtable( bridge_client009_vtable,
++                        ARRAY_SIZE(bridge_client009_vtable) );
 +    bridge_fill_vtable( bridge_client13_vtable, ARRAY_SIZE(bridge_client13_vtable) );
 +    bridge_fill_vtable( bridge_client14_vtable, ARRAY_SIZE(bridge_client14_vtable) );
 +    bridge_fill_vtable( bridge_client15_vtable, ARRAY_SIZE(bridge_client15_vtable) );
@@ -5265,6 +5375,7 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_fill_vtable( bridge_friends13_vtable, ARRAY_SIZE(bridge_friends13_vtable) );
 +    bridge_fill_vtable( bridge_friends14_vtable, ARRAY_SIZE(bridge_friends14_vtable) );
 +    bridge_fill_vtable( bridge_utils_vtable, ARRAY_SIZE(bridge_utils_vtable) );
++    bridge_fill_vtable( bridge_utils5_vtable, ARRAY_SIZE(bridge_utils5_vtable) );
 +    bridge_fill_vtable( bridge_apps_vtable, ARRAY_SIZE(bridge_apps_vtable) );
 +    bridge_fill_vtable( bridge_apps5_vtable, ARRAY_SIZE(bridge_apps5_vtable) );
 +    bridge_fill_vtable( bridge_generic_vtable, ARRAY_SIZE(bridge_generic_vtable) );
@@ -5273,18 +5384,25 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_fill_vtable( bridge_matchmaking_servers_vtable,
 +                        ARRAY_SIZE(bridge_matchmaking_servers_vtable) );
 +    bridge_fill_vtable( bridge_lobby_vtable, ARRAY_SIZE(bridge_lobby_vtable) );
++    bridge_fill_vtable( bridge_lobby8_vtable, ARRAY_SIZE(bridge_lobby8_vtable) );
 +    bridge_fill_vtable( bridge_remote_storage_vtable,
 +                        ARRAY_SIZE(bridge_remote_storage_vtable) );
 +    bridge_fill_vtable( bridge_remote_storage11_vtable,
 +                        ARRAY_SIZE(bridge_remote_storage11_vtable) );
++    bridge_fill_vtable( bridge_remote_storage2_vtable,
++                        ARRAY_SIZE(bridge_remote_storage2_vtable) );
 +    bridge_fill_vtable( bridge_networking_vtable,
 +                        ARRAY_SIZE(bridge_networking_vtable) );
++    bridge_fill_vtable( bridge_networking3_vtable,
++                        ARRAY_SIZE(bridge_networking3_vtable) );
 +    bridge_fill_vtable( bridge_game_server_stats_vtable,
 +                        ARRAY_SIZE(bridge_game_server_stats_vtable) );
 +    bridge_fill_vtable( bridge_user_stats_vtable,
 +                        ARRAY_SIZE(bridge_user_stats_vtable) );
 +    bridge_fill_vtable( bridge_user_stats11_vtable,
 +                        ARRAY_SIZE(bridge_user_stats11_vtable) );
++    bridge_fill_vtable( bridge_user_stats7_vtable,
++                        ARRAY_SIZE(bridge_user_stats7_vtable) );
 +    bridge_fill_vtable( bridge_ugc14_vtable, ARRAY_SIZE(bridge_ugc14_vtable) );
 +    bridge_fill_vtable( bridge_ugc15_vtable, ARRAY_SIZE(bridge_ugc15_vtable) );
 +    bridge_fill_vtable( bridge_http_vtable, ARRAY_SIZE(bridge_http_vtable) );
@@ -5319,6 +5437,7 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +                        ARRAY_SIZE(bridge_app_ticket_vtable) );
 +    bridge_client.vtable = bridge_client_vtable;
 +    bridge_client008.vtable = bridge_client008_vtable;
++    bridge_client009.vtable = bridge_client009_vtable;
 +    bridge_client13.vtable = bridge_client13_vtable;
 +    bridge_client14.vtable = bridge_client14_vtable;
 +    bridge_client15.vtable = bridge_client15_vtable;
@@ -5338,6 +5457,7 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_friends13.vtable = bridge_friends13_vtable;
 +    bridge_friends14.vtable = bridge_friends14_vtable;
 +    bridge_utils.vtable = bridge_utils_vtable;
++    bridge_utils5.vtable = bridge_utils5_vtable;
 +    bridge_apps.vtable = bridge_apps_vtable;
 +    bridge_apps5.vtable = bridge_apps5_vtable;
 +    bridge_generic.vtable = bridge_generic_vtable;
@@ -5345,12 +5465,16 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_game_server12.vtable = bridge_game_server12_vtable;
 +    bridge_matchmaking_servers.vtable = bridge_matchmaking_servers_vtable;
 +    bridge_lobby.vtable = bridge_lobby_vtable;
++    bridge_lobby8.vtable = bridge_lobby8_vtable;
 +    bridge_remote_storage.vtable = bridge_remote_storage_vtable;
 +    bridge_remote_storage11.vtable = bridge_remote_storage11_vtable;
++    bridge_remote_storage2.vtable = bridge_remote_storage2_vtable;
 +    bridge_networking.vtable = bridge_networking_vtable;
++    bridge_networking3.vtable = bridge_networking3_vtable;
 +    bridge_game_server_stats.vtable = bridge_game_server_stats_vtable;
 +    bridge_user_stats.vtable = bridge_user_stats_vtable;
 +    bridge_user_stats11.vtable = bridge_user_stats11_vtable;
++    bridge_user_stats7.vtable = bridge_user_stats7_vtable;
 +    bridge_ugc14.vtable = bridge_ugc14_vtable;
 +    bridge_ugc15.vtable = bridge_ugc15_vtable;
 +    bridge_http.vtable = bridge_http_vtable;
@@ -5383,6 +5507,7 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +        (void *)bridge_app_ticket_get_ownership_data;
 +
 +    bridge_init_client008_layout( bridge_client008_vtable );
++    bridge_init_client009_layout( bridge_client009_vtable );
 +    bridge_init_client_layout( bridge_client13_vtable, 13 );
 +    bridge_init_client_layout( bridge_client14_vtable, 14 );
 +    bridge_init_client_layout( bridge_client15_vtable, 15 );
@@ -5592,6 +5717,8 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_utils_vtable[31] = (void *)bridge_utils_init_filter;
 +    bridge_utils_vtable[32] = (void *)bridge_utils_filter_text;
 +    bridge_utils_vtable[34] = (void *)bridge_utils_steam_deck;
++    memcpy( bridge_utils5_vtable, bridge_utils_vtable,
++            ARRAY_SIZE(bridge_utils5_vtable) * sizeof(*bridge_utils5_vtable) );
 +    bridge_apps_vtable[0] = (void *)bridge_apps_subscribed;
 +    bridge_apps_vtable[1] = (void *)bridge_apps_low_violence;
 +    bridge_apps_vtable[2] = (void *)bridge_apps_cybercafe;
@@ -5721,6 +5848,13 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_lobby_vtable[35] = (void *)bridge_lobby_owner;
 +    bridge_lobby_vtable[36] = (void *)bridge_lobby_set_owner;
 +    bridge_lobby_vtable[37] = (void *)bridge_lobby_set_linked;
++    /* SteamMatchMaking009 inserted CompatibleMembersFilter at slot 11 and
++     * SetLinkedLobby at the end. SteamMatchMaking008 therefore uses slots
++     * 0..10 unchanged and 009 slots 12..37 as its slots 11..36. */
++    memcpy( bridge_lobby8_vtable, bridge_lobby_vtable,
++            11 * sizeof(*bridge_lobby8_vtable) );
++    memcpy( bridge_lobby8_vtable + 11, bridge_lobby_vtable + 12,
++            25 * sizeof(*bridge_lobby8_vtable) );
 +    bridge_remote_storage_vtable[0] = (void *)bridge_remote_file_write;
 +    bridge_remote_storage_vtable[1] = (void *)bridge_remote_file_read;
 +    bridge_remote_storage_vtable[5] = (void *)bridge_remote_forget;
@@ -5763,6 +5897,13 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_remote_storage11_vtable[18] = (void *)bridge_remote_cloud_account;
 +    bridge_remote_storage11_vtable[19] = (void *)bridge_remote_cloud_app;
 +    bridge_remote_storage11_vtable[20] = (void *)bridge_remote_set_cloud_app;
++    bridge_remote_storage2_vtable[0] = (void *)bridge_remote_file_write;
++    bridge_remote_storage2_vtable[1] = (void *)bridge_remote_file_size;
++    bridge_remote_storage2_vtable[2] = (void *)bridge_remote_file_read;
++    bridge_remote_storage2_vtable[3] = (void *)bridge_remote_exists;
++    bridge_remote_storage2_vtable[4] = (void *)bridge_remote_file_count;
++    bridge_remote_storage2_vtable[5] = (void *)bridge_remote_name_size;
++    bridge_remote_storage2_vtable[6] = (void *)bridge_remote_quota32;
 +    bridge_networking_vtable[0] = (void *)bridge_network_send;
 +    bridge_networking_vtable[1] = (void *)bridge_network_available;
 +    bridge_networking_vtable[2] = (void *)bridge_network_read;
@@ -5771,6 +5912,9 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_networking_vtable[5] = (void *)bridge_network_close_channel;
 +    bridge_networking_vtable[6] = (void *)bridge_network_session_state;
 +    bridge_networking_vtable[7] = (void *)bridge_network_allow_relay;
++    memcpy( bridge_networking3_vtable, bridge_networking_vtable,
++            5 * sizeof(*bridge_networking3_vtable) );
++    bridge_networking3_vtable[5] = (void *)bridge_network_session_state;
 +    bridge_game_server_stats_vtable[0] = (void *)bridge_game_server_stats_request;
 +    bridge_game_server_stats_vtable[1] = (void *)bridge_game_server_stats_get_int;
 +    bridge_game_server_stats_vtable[2] = (void *)bridge_game_server_stats_get_float;
@@ -5826,6 +5970,24 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_user_stats_vtable[42] = (void *)bridge_user_stats_history_double;
 +    bridge_user_stats_vtable[43] = (void *)bridge_user_stats_limits_int;
 +    bridge_user_stats_vtable[44] = (void *)bridge_user_stats_limits_float;
++    memcpy( bridge_user_stats7_vtable, bridge_user_stats_vtable,
++            14 * sizeof(*bridge_user_stats7_vtable) );
++    bridge_user_stats7_vtable[14] = (void *)bridge_user_stats_request_user;
++    bridge_user_stats7_vtable[15] = (void *)bridge_user_stats_get_user_int;
++    bridge_user_stats7_vtable[16] = (void *)bridge_user_stats_get_user_float;
++    bridge_user_stats7_vtable[17] = (void *)bridge_user_stats_get_user_achievement;
++    bridge_user_stats7_vtable[18] = (void *)bridge_user_stats_get_user_unlock;
++    bridge_user_stats7_vtable[19] = (void *)bridge_user_stats_reset;
++    bridge_user_stats7_vtable[20] = (void *)bridge_user_stats_find_create;
++    bridge_user_stats7_vtable[21] = (void *)bridge_user_stats_find;
++    bridge_user_stats7_vtable[22] = (void *)bridge_user_stats_leaderboard_name;
++    bridge_user_stats7_vtable[23] = (void *)bridge_user_stats_entry_count;
++    bridge_user_stats7_vtable[24] = (void *)bridge_user_stats_sort;
++    bridge_user_stats7_vtable[25] = (void *)bridge_user_stats_display_type;
++    bridge_user_stats7_vtable[26] = (void *)bridge_user_stats_download;
++    bridge_user_stats7_vtable[27] = (void *)bridge_user_stats_downloaded_entry;
++    bridge_user_stats7_vtable[28] = (void *)bridge_user_stats_upload;
++    bridge_user_stats7_vtable[29] = (void *)bridge_user_stats_current_players;
 +    memcpy( bridge_user_stats11_vtable, bridge_user_stats_vtable,
 +            sizeof(bridge_user_stats11_vtable) );
 +    bridge_user_stats11_vtable[30] = (void *)bridge_zero;
@@ -6059,6 +6221,7 @@ index 0000000000000000000000000000000000000000..c3834d9bb0859e637bec918a70003baa
 +    bridge_trace( "CreateInterface %s", name ? name : "(null)" );
 +    if (return_code) *return_code = 0;
 +    if (name && !strcmp( name, "SteamClient008" )) return &bridge_client008;
++    if (name && !strcmp( name, "SteamClient009" )) return &bridge_client009;
 +    if (name && !strcmp( name, "SteamClient013" )) return &bridge_client13;
 +    if (name && !strcmp( name, "SteamClient014" )) return &bridge_client14;
 +    if (name && !strcmp( name, "SteamClient015" )) return &bridge_client15;
