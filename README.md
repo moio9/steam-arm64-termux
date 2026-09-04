@@ -33,7 +33,7 @@ User data and downloaded Valve files remain below
 `~/.local/share/steam-arm64-termux`, so removing the package never deletes a
 Steam account, installed games, or credentials. The APT package also installs
 the version-locked `hangover-wine-steamswap` overlay required by legacy Steam
-DRM; it intentionally depends on `hangover-wine 11.9`.
+DRM; it intentionally depends on `hangover-wine 11.16`.
 
 Steam registers two Bionic compatibility choices for Windows games:
 
@@ -106,7 +106,7 @@ development and legacy Proton experiments are intentionally omitted.
   files and contains the ABI-coherent Linux closure needed by Steam. Its
   generated manifest lists every file and origin.
 - Hangover Wine and its Box64 backend come from `pkg`. The project APT
-  repository supplies a small, source-locked Hangover 11.9 loader overlay for
+  repository supplies a small, source-locked Hangover 11.16 loader overlay for
   legacy Steam DRM; the base Hangover package is not bundled.
 - `lsteambridge` uses a same-UID, mode-0600 Unix socket to connect Wine's
   Bionic `lsteamclient` proxy to the authenticated native Steam session.

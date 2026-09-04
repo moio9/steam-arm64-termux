@@ -41,7 +41,7 @@ Steamworks.
 ## Hangover loader overlay
 
 The APT repository's `hangover-wine-steamswap` package contains four rebuilt
-LGPL Wine artifacts. The exact Hangover 11.9 revision, project patch, artifact
+LGPL Wine artifacts. The exact Hangover 11.16 revision, project patch, artifact
 hashes, rebuild notes and LGPL-2.1 text are published with the project; the
 base Hangover package remains an external dependency.
 

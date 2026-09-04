@@ -7,6 +7,8 @@ packaging=$root/packaging/steam-arm64
 # shellcheck source=packaging/steam-arm64/release.lock
 . "$packaging/release.lock"
 source_epoch=${SOURCE_DATE_EPOCH:-1788134400}
+[[ $source_epoch =~ ^[0-9]+$ ]] || { printf '%s\n' 'SOURCE_DATE_EPOCH must be numeric.' >&2; exit 1; }
+export SOURCE_DATE_EPOCH=$source_epoch
 cache=${STEAM_ARM64_PACKAGE_CACHE:-$root/download-cache/termux-package}
 output=${1:-}
 stage=
@@ -73,7 +75,7 @@ Version: $PACKAGE_VERSION-$PACKAGE_REVISION
 Architecture: aarch64
 Maintainer: moio9 <noreply@github.com>
 Installed-Size: $installed_size
-Depends: bash, coreutils, curl, python, zstd, patchelf, git, clang, binutils, hangover-wine-steamswap (= 11.9-1), hangover-wowbox64 (= 11.9), hangover-libarm64ecfex (= 11.9), hangover-libwow64fex (= 11.9)
+Depends: bash, coreutils, curl, python, zstd, patchelf, git, clang, binutils, hangover-wine-steamswap (= 11.16-1), hangover-wowbox64 (= 11.16), hangover-libarm64ecfex (= 11.16), hangover-libwow64fex (= 11.16)
 Section: games
 Priority: optional
 Homepage: https://github.com/moio9/steam-arm64-termux

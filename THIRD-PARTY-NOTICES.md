@@ -14,7 +14,7 @@ hashes as applicable.
   `THIRD-PARTY-NOTICES/ubuntu/` on the user's device.
 - DXVK 1.10.3: zlib/libpng license; fetched from the upstream DXVK release.
 - vkd3d-proton 3.0.1: LGPL-2.1; fetched from the upstream vkd3d-proton release.
-- Hangover Wine 11.9 loader overlay: LGPL Wine artifacts rebuilt from the
+- Hangover Wine 11.16 loader overlay: LGPL Wine artifacts rebuilt from the
   pinned Hangover source and the public
   `public-source/hangover-steamswap` patch. The APT overlay package includes
   the patch, source lock and rebuild notes alongside the four modified files.

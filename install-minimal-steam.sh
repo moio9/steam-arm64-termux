@@ -130,12 +130,12 @@ required_hangover_packages=(
 for package_name in "${required_hangover_packages[@]}"; do
     package_version=$(dpkg-query -W -f='${Version}' "$package_name" 2>/dev/null || true)
     case $package_name:$package_version in
-        hangover-wine:11.9|hangover-wine-steamswap:11.9-1|\
-        hangover-wowbox64:11.9|hangover-libarm64ecfex:11.9|\
-        hangover-libwow64fex:11.9) ;;
+        hangover-wine:11.16|hangover-wine-steamswap:11.16-1|\
+        hangover-wowbox64:11.16|hangover-libarm64ecfex:11.16|\
+        hangover-libwow64fex:11.16) ;;
         *)
             printf 'Required Hangover package version is missing: %s\n' "$package_name" >&2
-            printf '%s\n' 'Install the locked Hangover 11.9 stack before running Steam ARM64.' >&2
+            printf '%s\n' 'Install the locked Hangover 11.16 stack before running Steam ARM64.' >&2
             exit 1
             ;;
     esac
@@ -194,8 +194,8 @@ hangover_patch=$hangover_public/patches/0001-steamclient-swap-arm64.patch
         "$NTDLL_AARCH64_SHA256" "$wine_root/lib/wine/aarch64-windows/ntdll.dll" |
         sha256sum -c - >/dev/null
 ) || {
-    printf '%s\n' 'Hangover 11.9 is missing the Steam DRM loader overlay.' >&2
-    printf '%s\n' 'Install hangover-wine-steamswap=11.9-1 from the project APT repository.' >&2
+    printf '%s\n' 'Hangover 11.16 is missing the Steam DRM loader overlay.' >&2
+    printf '%s\n' 'Install hangover-wine-steamswap=11.16-1 from the project APT repository.' >&2
     exit 1
 }
 

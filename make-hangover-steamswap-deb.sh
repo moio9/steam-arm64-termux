@@ -3,7 +3,10 @@ set -euo pipefail
 umask 022
 
 root=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
-source_dir=${HANGOVER_SOURCE_DIR:-${HOME:?HOME is required}/hangover-wine-11.9-steamswap}
+source_epoch=${SOURCE_DATE_EPOCH:-1788134400}
+[[ $source_epoch =~ ^[0-9]+$ ]] || { printf '%s\n' 'SOURCE_DATE_EPOCH must be numeric.' >&2; exit 1; }
+export SOURCE_DATE_EPOCH=$source_epoch
+source_dir=${HANGOVER_SOURCE_DIR:-${HOME:?HOME is required}/hangover-wine-11.16-src}
 build_dir=${HANGOVER_BUILD_DIR:-$source_dir/build-steamswap}
 output=${1:-}
 meta=$root/public-source/hangover-steamswap
@@ -61,18 +64,18 @@ install -m 0644 "$meta/README.md" "$meta/source.lock" \
 size=$(du -sk "$pkg/$prefix" | cut -f1)
 cat >"$pkg/DEBIAN/control" <<EOF
 Package: hangover-wine-steamswap
-Version: 11.9-1
+Version: 11.16-1
 Architecture: aarch64
 Maintainer: moio9 <noreply@github.com>
 Installed-Size: $size
-Depends: hangover-wine (= 11.9)
-Replaces: hangover-wine (<= 11.9)
+Depends: hangover-wine (= 11.16)
+Replaces: hangover-wine (<= 11.16)
 Section: x11
 Priority: optional
 Homepage: https://github.com/moio9/steam-arm64-termux
-Description: Hangover 11.9 Steam client loader overlay for ARM64
+Description: Hangover 11.16 Steam client loader overlay for ARM64
  Installs the Wine loader fixes required by legacy Steam DRM under WOW64.
 EOF
-find "$pkg" -exec touch -h -d '@1788134400' {} +
+find "$pkg" -exec touch -h -d "@$source_epoch" {} +
 dpkg-deb --root-owner-group --build "$pkg" "$output" >/dev/null
 printf 'Created %s\nSHA-256: %s\n' "$output" "$(sha256sum "$output" | cut -d' ' -f1)"

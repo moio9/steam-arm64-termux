@@ -1,6 +1,6 @@
-PACKAGE_VERSION=0.1.5
+PACKAGE_VERSION=0.1.6
 PACKAGE_REVISION=1
-BOOTSTRAP_FILENAME=steam-arm64-termux-0.1.5-bootstrap.tar.zst
-BOOTSTRAP_SIZE=6898251
-BOOTSTRAP_SHA256=81b640695ae9dfd75469ad486143f0db21ce740364459a421349026257287754
-BOOTSTRAP_URL=https://github.com/moio9/steam-arm64-termux/releases/download/v0.1.5/steam-arm64-termux-0.1.5-bootstrap.tar.zst
+BOOTSTRAP_FILENAME=steam-arm64-termux-0.1.6-bootstrap.tar.zst
+BOOTSTRAP_SIZE=6898527
+BOOTSTRAP_SHA256=d7da5b6b2a6a581c3ec6aab80ad85c52a12e774b46ba85920a4b725c28840c79
+BOOTSTRAP_URL=https://github.com/moio9/steam-arm64-termux/releases/download/v0.1.6/steam-arm64-termux-0.1.6-bootstrap.tar.zst
