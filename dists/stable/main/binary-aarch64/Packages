@@ -1,16 +1,32 @@
-Package: steam-arm64
-Version: 0.1.2-7
+Package: hangover-wine-steamswap
+Version: 11.9-1
 Architecture: aarch64
 Maintainer: moio9 <noreply@github.com>
-Installed-Size: 6780
-Depends: bash, coreutils, curl, python, zstd, patchelf
+Installed-Size: 10110
+Depends: hangover-wine (= 11.9)
+Replaces: hangover-wine (<= 11.9)
+Section: x11
+Priority: optional
+Homepage: https://github.com/moio9/steam-arm64-termux
+Description: Hangover 11.9 Steam client loader overlay for ARM64
+ Installs the Wine loader fixes required by legacy Steam DRM under WOW64.
+Filename: pool/main/h/hangover-wine-steamswap/hangover-wine-steamswap_11.9-1_aarch64.deb
+Size: 2322336
+SHA256: d82bab238be0bbcab92ab7bea4d674e1d363392449851ddcb5a9546ef145a66c
+
+Package: steam-arm64
+Version: 0.1.3-1
+Architecture: aarch64
+Maintainer: moio9 <noreply@github.com>
+Installed-Size: 6788
+Depends: bash, coreutils, curl, python, zstd, patchelf, git, clang, binutils, hangover-wine-steamswap (= 11.9-1)
 Section: games
 Priority: optional
 Homepage: https://github.com/moio9/steam-arm64-termux
 Description: Native ARM64 Steam bootstrap and desktop integration for Termux
  Downloads locked upstream components on first launch. Valve client files,
  games, credentials and the Steamworks SDK are not included in this package.
-Filename: pool/main/s/steam-arm64/steam-arm64_0.1.2-7_aarch64.deb
-Size: 6621272
-SHA256: edebb1cd32d9530b18af3835d70b5273c1c66be3c3eff9925579c6655b47418e
+Filename: pool/main/s/steam-arm64/steam-arm64_0.1.3-1_aarch64.deb
+Size: 6621748
+SHA256: ffd0a3de122667ec00261360fae2e55cb9531257816954f75b74bf252a11675a
 
