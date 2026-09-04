@@ -30,8 +30,24 @@ command -v pkg >/dev/null || {
 }
 pkg install -y python patchelf curl zstd
 
-python3 "$bootstrap" --lock "$lock" install \
-    --cache "$cache_root/valve" --destination "$client_root"
+existing_client_files=(
+    steam steamclient.so steamui.so chromehtml.so steamwebhelper
+    steamsysinfo reaper gldriverquery vulkandriverquery
+)
+reuse_client=1
+for name in "${existing_client_files[@]}"; do
+    [[ -f $client_root/steamrtarm64/$name &&
+       ! -L $client_root/steamrtarm64/$name ]] || {
+        reuse_client=0
+        break
+    }
+done
+if (( reuse_client )); then
+    printf '%s\n' 'Reusing the complete existing Valve client (it may have self-updated).'
+else
+    python3 "$bootstrap" --lock "$lock" install \
+        --cache "$cache_root/valve" --destination "$client_root"
+fi
 
 # The locked Valve depots are distributed through ZIP payloads, whose Unix
 # execute bits are not reliable after extraction on Android filesystems.
