@@ -3,8 +3,8 @@ set -euo pipefail
 
 prefix=/data/data/com.termux/files/usr
 source_file=$prefix/etc/apt/sources.list.d/steam-arm64-termux.list
-source_line='deb [arch=aarch64 trusted=yes] https://raw.githubusercontent.com/moio9/steam-arm64-termux/gh-pages stable main'
-legacy_source_line='deb [arch=aarch64 trusted=yes] https://moio9.github.io/steam-arm64-termux stable main'
+source_line='deb [arch=aarch64 trusted=yes] https://moio9.github.io/steam-arm64-termux stable main'
+legacy_source_line='deb [arch=aarch64 trusted=yes] https://raw.githubusercontent.com/moio9/steam-arm64-termux/gh-pages stable main'
 
 [[ ${PREFIX:-} == "$prefix" ]] || {
     printf '%s\n' 'Run this repository setup inside standard Termux.' >&2

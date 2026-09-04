@@ -2,7 +2,11 @@
 set -euo pipefail
 umask 022
 
-source_epoch=${SOURCE_DATE_EPOCH:-1788134400}
+repository_epoch=${APT_REPOSITORY_EPOCH:-$(date +%s)}
+[[ $repository_epoch =~ ^[0-9]+$ ]] || {
+    printf '%s\n' 'APT_REPOSITORY_EPOCH must be numeric.' >&2
+    exit 1
+}
 
 die() {
     printf 'make-apt-repository: %s\n' "$*" >&2
@@ -53,7 +57,7 @@ release=$output/dists/stable/Release
     printf '%s\n' 'Label: Steam ARM64 for Termux'
     printf '%s\n' 'Suite: stable'
     printf '%s\n' 'Codename: stable'
-    printf 'Date: %s\n' "$(LC_ALL=C date -Ru -d "@$source_epoch")"
+    printf 'Date: %s\n' "$(LC_ALL=C date -Ru -d "@$repository_epoch")"
     printf '%s\n' 'Architectures: aarch64'
     printf '%s\n' 'Components: main'
     printf '%s\n' 'Description: Native ARM64 Steam packages for Termux'
@@ -74,5 +78,5 @@ cat >"$output/index.html" <<'EOF'
 <a href="https://github.com/moio9/steam-arm64-termux">project repository</a>.</p>
 EOF
 : >"$output/.nojekyll"
-find "$output" -exec touch -h -d "@$source_epoch" {} +
+find "$output" -exec touch -h -d "@$repository_epoch" {} +
 printf 'Created APT repository: %s\n' "$output"
