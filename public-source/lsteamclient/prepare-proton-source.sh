@@ -75,22 +75,28 @@ git -C "$stage" apply "$patch"
 [[ -f $stage/lsteamclient/bridge_proxy.inc ]] ||
     die 'patch did not create bridge_proxy.inc'
 
-list_header=$deps_dir/include/wine/list.h
-if [[ -f $list_header ]]; then
-    printf '%s  %s\n' "$WINE_LIST_SHA256" "$list_header" |
-        sha256sum -c - >/dev/null ||
-        die "existing Wine list.h has the wrong checksum: $list_header"
-else
-    header_tmp=$(mktemp "$deps_dir/include/wine/.list.h.XXXXXX")
+fetch_wine_header()
+{
+    local name=$1 expected=$2 target=$deps_dir/include/wine/$1
+    if [[ -f $target ]]; then
+        printf '%s  %s\n' "$expected" "$target" |
+            sha256sum -c - >/dev/null ||
+            die "existing Wine $name has the wrong checksum: $target"
+        return
+    fi
+    header_tmp=$(mktemp "$deps_dir/include/wine/.$name.XXXXXX")
     curl --fail --location --retry 3 --silent --show-error \
-        "https://raw.githubusercontent.com/ValveSoftware/wine/$PROTON_WINE_COMMIT/include/wine/list.h" \
+        "https://raw.githubusercontent.com/ValveSoftware/wine/$PROTON_WINE_COMMIT/include/wine/$name" \
         --output "$header_tmp"
-    printf '%s  %s\n' "$WINE_LIST_SHA256" "$header_tmp" |
-        sha256sum -c - >/dev/null || die 'downloaded Wine list.h checksum mismatch'
+    printf '%s  %s\n' "$expected" "$header_tmp" |
+        sha256sum -c - >/dev/null || die "downloaded Wine $name checksum mismatch"
     chmod 0644 "$header_tmp"
-    mv -- "$header_tmp" "$list_header"
+    mv -- "$header_tmp" "$target"
     header_tmp=
-fi
+}
+
+fetch_wine_header list.h "$WINE_LIST_SHA256"
+fetch_wine_header asm.h "$WINE_ASM_SHA256"
 
 mv -- "$stage" "$checkout"
 stage=
@@ -98,6 +104,6 @@ stage=
 printf 'Prepared Proton lsteamclient source\n'
 printf '  upstream: %s (%s)\n' "$PROTON_TAG" "$PROTON_COMMIT"
 printf '  checkout: %s\n' "$checkout"
-printf '  Wine header: %s\n' "$list_header"
+printf '  Wine headers: %s\n' "$deps_dir/include/wine"
 printf '  local changes:\n'
 git -C "$checkout" status --short --untracked-files=all

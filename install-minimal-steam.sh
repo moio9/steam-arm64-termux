@@ -116,14 +116,30 @@ if (( ! check_only && ! skip_packages )); then
         bash coreutils diffutils findutils patchelf perl
         curl python zstd git clang binutils file
         glibc-runner bash-glibc ca-certificates-glibc
-        hangover-wine hangover-wine-steamswap
-        hangover-wowbox64 hangover-libarm64ecfex hangover-libwow64fex
     )
     while IFS= read -r package; do
         [[ -n $package ]] && packages+=("$package")
     done < "$root/steam-linux-official-packages.txt"
     pkg install -y "${packages[@]}"
 fi
+
+required_hangover_packages=(
+    hangover-wine hangover-wine-steamswap hangover-wowbox64
+    hangover-libarm64ecfex hangover-libwow64fex
+)
+for package_name in "${required_hangover_packages[@]}"; do
+    package_version=$(dpkg-query -W -f='${Version}' "$package_name" 2>/dev/null || true)
+    case $package_name:$package_version in
+        hangover-wine:11.9|hangover-wine-steamswap:11.9-1|\
+        hangover-wowbox64:11.9|hangover-libarm64ecfex:11.9|\
+        hangover-libwow64fex:11.9) ;;
+        *)
+            printf 'Required Hangover package version is missing: %s\n' "$package_name" >&2
+            printf '%s\n' 'Install the locked Hangover 11.9 stack before running Steam ARM64.' >&2
+            exit 1
+            ;;
+    esac
+done
 
 required_commands=(bash cmp patchelf perl sha256sum)
 if (( ! check_only )); then
@@ -142,11 +158,6 @@ vulkan_icd=$termux_prefix/share/vulkan/icd.d/freedreno_icd.aarch64.json
 lsteam_target=$wine_root/lib/wine/aarch64-unix/lsteamclient.so
 lsteam_pe_target=$wine_root/lib/wine/i386-windows/lsteamclient.dll
 lsteam_public=$root/public-source/lsteamclient
-lsteam_work_root=${LSTEAM_WORK_ROOT:-$lsteam_public/work}
-lsteam_checkout=${PROTON_CHECKOUT:-$lsteam_work_root/proton}
-lsteam_build_dir=${LSTEAM_BUILD_DIR:-$lsteam_work_root/build}
-lsteam_artifact=$lsteam_build_dir/lsteamclient.so
-lsteam_pe_artifact=$lsteam_build_dir/lsteamclient.dll
 lsteam_patch=$lsteam_public/patches/0001-termux-arm64-bridge.patch
 # shellcheck source=/dev/null
 . "$lsteam_public/source.lock"
@@ -154,6 +165,14 @@ lsteam_patch=$lsteam_public/patches/0001-termux-arm64-bridge.patch
     printf '%s\n' 'Invalid lsteamclient patch checksum in source.lock.' >&2
     exit 1
 }
+lsteam_work_root=${LSTEAM_WORK_ROOT:-$lsteam_public/work/${PATCH_SHA256:0:16}}
+lsteam_checkout=${PROTON_CHECKOUT:-$lsteam_work_root/proton}
+lsteam_build_dir=${LSTEAM_BUILD_DIR:-$lsteam_work_root/build}
+lsteam_artifact=$lsteam_build_dir/lsteamclient.so
+lsteam_pe_artifact=$lsteam_build_dir/lsteamclient.dll
+export LSTEAM_WORK_ROOT=$lsteam_work_root
+export PROTON_CHECKOUT=$lsteam_checkout
+export LSTEAM_BUILD_DIR=$lsteam_build_dir
 printf '%s  %s\n' "$PATCH_SHA256" "$lsteam_patch" |
     sha256sum -c - >/dev/null || {
         printf '%s\n' 'The public lsteamclient patch does not match source.lock.' >&2

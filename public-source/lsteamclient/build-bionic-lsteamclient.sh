@@ -16,6 +16,7 @@ jobs=${JOBS:-4}
 cxx=${CXX:-clang++}
 src=$checkout/lsteamclient
 list_header=$deps_dir/include/wine/list.h
+asm_header=$deps_dir/include/wine/asm.h
 ntdll=$wine_root/lib/wine/aarch64-unix/ntdll.so
 obj_dir=
 output_tmp=
@@ -50,15 +51,18 @@ done
 [[ -f $bridge_include/protocol.h ]] ||
     die "missing bridge protocol header: $bridge_include/protocol.h"
 [[ -f $list_header ]] || die "missing Wine list.h: $list_header"
-printf '%s  %s\n' "$WINE_LIST_SHA256" "$list_header" |
-    sha256sum -c - >/dev/null || die 'Wine list.h checksum mismatch'
+[[ -f $asm_header ]] || die "missing Wine asm.h: $asm_header"
+printf '%s  %s\n%s  %s\n' \
+    "$WINE_LIST_SHA256" "$list_header" \
+    "$WINE_ASM_SHA256" "$asm_header" |
+    sha256sum -c - >/dev/null || die 'Wine header checksum mismatch'
 [[ -d $wine_root/include/wine/windows ]] ||
     die "missing Hangover Wine headers below: $wine_root"
 [[ -f $ntdll ]] || die "missing Hangover ntdll.so: $ntdll"
 [[ -x $wine_root/bin/winegcc ]] || die "missing Hangover winegcc: $wine_root/bin/winegcc"
 
 mkdir -p -- "$build_dir/include/wine"
-install -m 0644 -- "$list_header" "$build_dir/include/wine/list.h"
+install -m 0644 -- "$list_header" "$asm_header" "$build_dir/include/wine/"
 obj_dir=$(mktemp -d "$build_dir/.objects.XXXXXX")
 output_tmp=$(mktemp "$build_dir/.lsteamclient.so.XXXXXX")
 
