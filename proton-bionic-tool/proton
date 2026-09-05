@@ -171,7 +171,11 @@ prepare_launch_args() {
         relative_game=${launch_args[i + 1]}
         [[ $relative_game != /* && $relative_game != [A-Za-z]:\\* ]] || continue
         [[ -d $launch_workdir/$relative_game ]] || continue
-        windows_game="G:\\$relative_game"
+        if [[ $steam_library_mapped == 1 ]]; then
+            windows_game="$windows_game_root\\$relative_game"
+        else
+            windows_game="G:\\$relative_game"
+        fi
         launch_args[i + 1]=$windows_game
     done
     printf '%s cwd=%q args=' "$(date '+%Y-%m-%d %H:%M:%S')" "$launch_cwd" >> "$log"

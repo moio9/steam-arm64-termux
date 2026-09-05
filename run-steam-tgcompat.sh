@@ -76,6 +76,12 @@ ln -sfn "$HERE/proton-bionic-fex-tool" \
   "$STEAM_HOME/Steam/compatibilitytools.d/Proton-Bionic-FEX-Termux"
 ln -sfn "$HERE/proton-bionic-fex-tool" \
   "$CLIENT_ROOT/compatibilitytools.d/Proton-Bionic-FEX-Termux"
+ln -sfn "$HERE/box64-native-tool" \
+  "$HERE/compatibilitytools.d/Box64-Native-Termux"
+ln -sfn "$HERE/box64-native-tool" \
+  "$STEAM_HOME/Steam/compatibilitytools.d/Box64-Native-Termux"
+ln -sfn "$HERE/box64-native-tool" \
+  "$CLIENT_ROOT/compatibilitytools.d/Box64-Native-Termux"
 # The glibc Hangover build is a separate optional runtime. Only advertise its
 # tool when that runtime is complete, so a clean installation never offers a
 # compatibility choice that is guaranteed to fail.

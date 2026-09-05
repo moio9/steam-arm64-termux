@@ -33,6 +33,7 @@
 #include "isteamparentalsettings.h"
 #include "isteamnetworkingmessages.h"
 #include "isteamnetworkingsockets.h"
+#include "steamnetworkingfakeip.h"
 #include "isteamnetworkingutils.h"
 #include "isteamhtmlsurface.h"
 #include "isteamappticket.h"

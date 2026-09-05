@@ -1,0 +1,14 @@
+"compatibilitytools"
+{
+    "compat_tools"
+    {
+        "box64_native_termux"
+        {
+            "install_path" "."
+            "display_name" "Box64 Native (Termux)"
+            "from_oslist" "linux"
+            "to_oslist" "linux"
+            "priority" "-70"
+        }
+    }
+}

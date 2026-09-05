@@ -3,7 +3,7 @@ set -euo pipefail
 
 root=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
 glibc_bin=/data/data/com.termux/files/usr/glibc/bin
-sdk=$root/../proton-lsteamclient-src/lsteamclient/steamworks_sdk_154
+sdk=${LSTEAM_SDK_DIR:-$root/../proton-lsteamclient-src/lsteamclient/steamworks_sdk_154}
 
 glibc-runner "$glibc_bin/aarch64-linux-gnu-g++" -O2 -Wall -Wextra -std=gnu++17 \
     -I"$root" -I"$sdk" "$root/server.cpp" -ldl \

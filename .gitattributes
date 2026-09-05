@@ -6,7 +6,7 @@
 *.inc text eol=lf
 *.json text eol=lf
 *.md text eol=lf
-*.patch text eol=lf
+*.patch text eol=lf whitespace=-blank-at-eol
 *.py text eol=lf
 *.sh text eol=lf
 *.tsv text eol=lf

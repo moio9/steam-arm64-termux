@@ -41,6 +41,10 @@ Steam registers two Bionic compatibility choices for Windows games:
 - **Proton Bionic FEX (Termux)** — the same Wine prefix, selecting
   `libwow64fex.dll` instead of `wowbox64.dll` through `HODLL`.
 
+Steam also registers **Box64 Native (Termux)** as an optional Linux-to-Linux
+compatibility tool for x86-64 ELF games. It is generic and contains no
+per-game profiles; compatibility depends on each game and its Linux runtime.
+
 If the separately built `hangover-glibc-11.9` runtime is present, Steam also
 registers **Proton ARM64 glibc (Termux)**. It remains optional because that
 custom runtime is not bundled with the small bootstrap package.
@@ -96,8 +100,8 @@ For a Windows game, select **Proton Bionic (Termux)** in the game's Steam
 compatibility properties. The tested default is Box64 plus DXVK 1.10.3; this
 older DXVK is intentional because DXVK 3.0.2 required `shaderInt64` and crashed
 or rejected the Adreno 740 Turnip path used in testing.
-Only this tested compatibility tool is registered by the minimal package;
-development and legacy Proton experiments are intentionally omitted.
+The minimal package registers the two Bionic backends and the generic Box64
+Native option; development and legacy Proton experiments remain omitted.
 
 ## Architecture
 

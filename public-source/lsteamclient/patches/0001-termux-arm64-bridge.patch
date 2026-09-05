@@ -149,7 +149,7 @@ index 4731e73e27526e26003abb07b1e413c0841aa9eb..8bcd9ef41a4200ae53e89838f0f6d17a
  #endif
 -
 diff --git a/lsteamclient/steamclient_main.c b/lsteamclient/steamclient_main.c
-index 07c4120c05634379e7c0b155e0d6cd9b693083d9..4698953e708b83432d871bd71eb7397c1b4c3642 100644
+index 07c4120c05634379e7c0b155e0d6cd9b693083d9..649f8397ef15aded395cf128954846bbd5d8dd36 100644
 --- a/lsteamclient/steamclient_main.c
 +++ b/lsteamclient/steamclient_main.c
 @@ -68,7 +68,7 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
@@ -161,6 +161,25 @@ index 07c4120c05634379e7c0b155e0d6cd9b693083d9..4698953e708b83432d871bd71eb7397c
              if (wsa_initialized)
              {
                  WSACleanup();
+@@ -150,14 +150,17 @@ static void *get_mem_from_steamclient_dll(size_t size, unsigned int version, voi
+ 
+     if (!alloc_base)
+     {
++#ifdef _WIN64
++        static const WCHAR steamclientW[] = {'s','t','e','a','m','c','l','i','e','n','t','6','4','.','d','l','l',0};
++#else
+         static const WCHAR steamclientW[] = {'s','t','e','a','m','c','l','i','e','n','t','.','d','l','l',0};
++#endif
+         const IMAGE_SECTION_HEADER *sec;
+         const IMAGE_NT_HEADERS *nt;
+         HMODULE mod;
+ 
+         if (!(mod = GetModuleHandleW(steamclientW)))
+         {
+-            /* That is steamclient64.dll for x64 but no known use cases on x64.*/
+             WARN("Module not found, err %lu.\n", GetLastError());
+             alloc_base = error_ptr;
+             return NULL;
 diff --git a/lsteamclient/steamclient_structs.h b/lsteamclient/steamclient_structs.h
 index fec3621166949d574ce9952b35ee6c29af4f01eb..c01cfcff3aaf13c36aa1b417cb9fee530085a424 100644
 --- a/lsteamclient/steamclient_structs.h
@@ -1459,10 +1478,10 @@ index 0000000000000000000000000000000000000000..a8ce4290db765a1a509d0591e31b31d9
 +{ return bridge_game_search_result( 13, game_id ); }
 diff --git a/lsteamclient/bridge_gameserver_proxy.inc b/lsteamclient/bridge_gameserver_proxy.inc
 new file mode 100644
-index 0000000000000000000000000000000000000000..5022b958680fb3f196b7c3d91ea93e0f59c85837
+index 0000000000000000000000000000000000000000..d0a7e161e9fbbeb712a6ac12d7bf339092c565e0
 --- /dev/null
 +++ b/lsteamclient/bridge_gameserver_proxy.inc
-@@ -0,0 +1,325 @@
+@@ -0,0 +1,341 @@
 +/* Bionic-side ISteamGameServer013 proxy. Keep signatures in vtable order. */
 +static uint64_t bridge_gs_id_value( CSteamID id )
 +{
@@ -1692,6 +1711,22 @@ index 0000000000000000000000000000000000000000..5022b958680fb3f196b7c3d91ea93e0f
 +    if (response.data_size) memcpy( ticket, response.data, response.data_size );
 +    if (ticket_size) *ticket_size = response.data_size;
 +    return response.result;
++}
++
++/* SteamGameServer015 adds a networking identity argument. The native bridge
++ * intentionally stays on the stable 013 ABI, so ignore the optional identity. */
++static uint32_t bridge_gs_get_auth_ticket15( void *iface, void *ticket,
++                                             int32_t maximum,
++                                             uint32_t *ticket_size,
++                                             const void *networking_identity )
++{
++    (void)networking_identity;
++    return bridge_gs_get_auth_ticket( iface, ticket, maximum, ticket_size );
++}
++
++static void bridge_gs_set_advertise( void *, int8_t active )
++{
++    bridge_gs_u32_call( 39, active != 0 );
 +}
 +
 +static uint32_t bridge_gs_has_license( void *, CSteamID id, uint32_t appid )
@@ -3872,10 +3907,10 @@ index 0000000000000000000000000000000000000000..d8ccbcf6af9980e8457953d4f79e63f7
 +}
 diff --git a/lsteamclient/bridge_networking_sockets_proxy.inc b/lsteamclient/bridge_networking_sockets_proxy.inc
 new file mode 100644
-index 0000000000000000000000000000000000000000..18bef749c9a6dafea972458c3f894400d1af52b2
+index 0000000000000000000000000000000000000000..e18fd7cb968a003fa8d476fa249a258872004ac4
 --- /dev/null
 +++ b/lsteamclient/bridge_networking_sockets_proxy.inc
-@@ -0,0 +1,495 @@
+@@ -0,0 +1,556 @@
 +/* Bionic-side SteamNetworkingSockets012/013 proxy. */
 +static_assert( sizeof(SteamNetworkingIdentity_144) == 136,
 +               "unexpected bridge identity ABI" );
@@ -3959,7 +3994,7 @@ index 0000000000000000000000000000000000000000..18bef749c9a6dafea972458c3f894400
 +}
 +
 +static u_SteamNetworkingMessage_t_153a *bridge_network_sockets_read_one(
-+    uint32_t handle, bool poll_group )
++    uint32_t handle, uint32_t method )
 +{
 +    const uint32_t header_size = sizeof(lsteam_bridge_network_message_header);
 +    lsteam_bridge_network_message_header header = {};
@@ -3969,7 +4004,7 @@ index 0000000000000000000000000000000000000000..18bef749c9a6dafea972458c3f894400
 +    {
 +        lsteam_bridge_game_server_request request = {};
 +        lsteam_bridge_game_server_response response = {};
-+        request.method = poll_group ? 20 : 2;
++        request.method = method;
 +        request.arg0 = handle;
 +        request.arg1 = offset;
 +        if (!bridge_network_sockets_rpc( &request, &response ) ||
@@ -4032,7 +4067,7 @@ index 0000000000000000000000000000000000000000..18bef749c9a6dafea972458c3f894400
 +    int32_t count = 0;
 +    while (count < maximum) {
 +        u_SteamNetworkingMessage_t_153a *message =
-+            bridge_network_sockets_read_one( handle, poll_group );
++            bridge_network_sockets_read_one( handle, poll_group ? 20 : 2 );
 +        if (!message) break;
 +        messages[count++] = message;
 +    }
@@ -4349,6 +4384,67 @@ index 0000000000000000000000000000000000000000..18bef749c9a6dafea972458c3f894400
 +            message->m_pfnRelease( message );
 +        }
 +    }
++}
++
++static void *bridge_network_sockets_create_fake( void *, int32_t port )
++{
++    lsteam_bridge_game_server_request request = {};
++    lsteam_bridge_game_server_response response = {};
++    request.method = 27;
++    request.arg0 = port;
++    return bridge_network_sockets_rpc( &request, &response ) && response.result
++        ? &bridge_network_fake_udp : NULL;
++}
++
++static void bridge_network_fake_udp_destroy( void * )
++{
++    lsteam_bridge_game_server_request request = {};
++    lsteam_bridge_game_server_response response = {};
++    request.method = 28;
++    bridge_network_sockets_rpc( &request, &response );
++}
++
++static uint32_t bridge_network_fake_udp_send(
++    void *, const SteamNetworkingIPAddr *address, const void *data,
++    uint32_t size, int32_t flags )
++{
++    lsteam_bridge_game_server_request request = {};
++    lsteam_bridge_game_server_response response = {};
++    if (!address || (size && !data) ||
++        size > sizeof(request.data) - sizeof(*address)) return 8;
++    request.method = 29;
++    request.arg0 = flags;
++    memcpy( request.data, address, sizeof(*address) );
++    if (size) memcpy( request.data + sizeof(*address), data, size );
++    request.data_size = sizeof(*address) + size;
++    return bridge_network_sockets_rpc( &request, &response )
++        ? response.result : 2;
++}
++
++static int32_t bridge_network_fake_udp_receive(
++    void *, u_SteamNetworkingMessage_t_153a **messages, int32_t maximum )
++{
++    if (!messages || maximum <= 0 || maximum > 1024) return 0;
++    int32_t count = 0;
++    while (count < maximum) {
++        u_SteamNetworkingMessage_t_153a *message =
++            bridge_network_sockets_read_one( 0, 30 );
++        if (!message) break;
++        messages[count++] = message;
++    }
++    return count;
++}
++
++static void bridge_network_fake_udp_cleanup(
++    void *, const SteamNetworkingIPAddr *address )
++{
++    lsteam_bridge_game_server_request request = {};
++    lsteam_bridge_game_server_response response = {};
++    if (!address) return;
++    request.method = 31;
++    request.data_size = sizeof(*address);
++    memcpy( request.data, address, sizeof(*address) );
++    bridge_network_sockets_rpc( &request, &response );
 +}
 +
 +/* SteamNetworkingSockets012 owns every message accepted by SendMessages and
@@ -4866,10 +4962,10 @@ index 0000000000000000000000000000000000000000..505a84b9da74a35186c6027216960c67
 +}
 diff --git a/lsteamclient/bridge_proxy.inc b/lsteamclient/bridge_proxy.inc
 new file mode 100644
-index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56aa857673
+index 0000000000000000000000000000000000000000..b7ca180c89aeacdd11ebd1244b64bab28f3adc43
 --- /dev/null
 +++ b/lsteamclient/bridge_proxy.inc
-@@ -0,0 +1,1489 @@
+@@ -0,0 +1,1529 @@
 +#include "protocol.h"
 +#include <stdarg.h>
 +#include <stdio.h>
@@ -4892,6 +4988,7 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +static bridge_proxy_object bridge_friends;
 +static bridge_proxy_object bridge_friends13, bridge_friends14;
 +static bridge_proxy_object bridge_game_server, bridge_game_server12;
++static bridge_proxy_object bridge_game_server15;
 +static bridge_proxy_object bridge_utils, bridge_utils5, bridge_apps, bridge_apps5, bridge_generic;
 +static bridge_proxy_object bridge_matchmaking_servers;
 +static bridge_proxy_object bridge_lobby, bridge_lobby8;
@@ -4908,6 +5005,7 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +static bridge_proxy_object bridge_video, bridge_parental;
 +static bridge_proxy_object bridge_network_messages;
 +static bridge_proxy_object bridge_network_sockets, bridge_network_sockets13;
++static bridge_proxy_object bridge_network_fake_udp;
 +static bridge_proxy_object bridge_network_utils3, bridge_network_utils4;
 +static bridge_proxy_object bridge_html, bridge_app_ticket;
 +static void *bridge_client_vtable[64], *bridge_client008_vtable[21];
@@ -4945,11 +5043,13 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +static void *bridge_network_messages_vtable[8];
 +static void *bridge_network_sockets_vtable[48];
 +static void *bridge_network_sockets13_vtable[48];
++static void *bridge_network_fake_udp_vtable[4];
 +static void *bridge_network_utils3_vtable[32];
 +static void *bridge_network_utils4_vtable[32];
 +static void *bridge_html_vtable[48], *bridge_app_ticket_vtable[1];
 +static void *bridge_game_server_vtable[64];
 +static void *bridge_game_server12_vtable[64];
++static void *bridge_game_server15_vtable[64];
 +static bool bridge_proxy_ready;
 +static bool bridge_rpc_connect( int *fd, const char **path );
 +
@@ -5135,6 +5235,9 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +    bridge_trace( "GetISteamGameServer %s", version ? version : "(null)" );
 +    if (version && !strcmp( version, "SteamGameServer012" )) return &bridge_game_server12;
 +    if (version && !strcmp( version, "SteamGameServer013" )) return &bridge_game_server;
++    if (version && (!strcmp( version, "SteamGameServer014" ) ||
++                    !strcmp( version, "SteamGameServer015" )))
++        return &bridge_game_server15;
 +    bridge_trace( "unsupported GameServer ABI %s", version ? version : "(null)" );
 +    return &bridge_generic;
 +}
@@ -5217,8 +5320,8 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +        return bridge_get_game_server( NULL, 0, 0, version );
 +    if (version && !strcmp( version, "STEAMHTMLSURFACE_INTERFACE_VERSION_005" ))
 +    {
-+        bridge_trace( "HTML interface disabled (A/B test)" );
-+        return NULL;
++        bridge_trace( "HTML interface enabled (stub)" );
++        return &bridge_html;
 +    }
 +    return &bridge_generic;
 +}
@@ -5428,6 +5531,8 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +                        ARRAY_SIZE(bridge_network_sockets_vtable) );
 +    bridge_fill_vtable( bridge_network_sockets13_vtable,
 +                        ARRAY_SIZE(bridge_network_sockets13_vtable) );
++    bridge_fill_vtable( bridge_network_fake_udp_vtable,
++                        ARRAY_SIZE(bridge_network_fake_udp_vtable) );
 +    bridge_fill_vtable( bridge_network_utils3_vtable,
 +                        ARRAY_SIZE(bridge_network_utils3_vtable) );
 +    bridge_fill_vtable( bridge_network_utils4_vtable,
@@ -5463,6 +5568,7 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +    bridge_generic.vtable = bridge_generic_vtable;
 +    bridge_game_server.vtable = bridge_game_server_vtable;
 +    bridge_game_server12.vtable = bridge_game_server12_vtable;
++    bridge_game_server15.vtable = bridge_game_server15_vtable;
 +    bridge_matchmaking_servers.vtable = bridge_matchmaking_servers_vtable;
 +    bridge_lobby.vtable = bridge_lobby_vtable;
 +    bridge_lobby8.vtable = bridge_lobby8_vtable;
@@ -5489,6 +5595,7 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +    bridge_network_messages.vtable = bridge_network_messages_vtable;
 +    bridge_network_sockets.vtable = bridge_network_sockets_vtable;
 +    bridge_network_sockets13.vtable = bridge_network_sockets13_vtable;
++    bridge_network_fake_udp.vtable = bridge_network_fake_udp_vtable;
 +    bridge_network_utils3.vtable = bridge_network_utils3_vtable;
 +    bridge_network_utils4.vtable = bridge_network_utils4_vtable;
 +    bridge_html.vtable = bridge_html_vtable;
@@ -5793,6 +5900,30 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +    memcpy( bridge_game_server12_vtable, bridge_game_server_vtable,
 +            sizeof(bridge_game_server_vtable) );
 +    bridge_game_server12_vtable[36] = (void *)bridge_gs_public_ip_v4;
++    /* 014/015 moved deprecated user methods to the end. Adapt them to the
++     * stable SteamGameServer013 bridge ABI explicitly. */
++    memcpy( bridge_game_server15_vtable, bridge_game_server_vtable,
++            24 * sizeof(*bridge_game_server15_vtable) );
++    bridge_game_server15_vtable[24] = (void *)bridge_gs_set_advertise;
++    bridge_game_server15_vtable[25] = (void *)bridge_gs_get_auth_ticket15;
++    bridge_game_server15_vtable[26] = (void *)bridge_gs_begin_auth;
++    bridge_game_server15_vtable[27] = (void *)bridge_gs_end_auth;
++    bridge_game_server15_vtable[28] = (void *)bridge_gs_cancel_ticket;
++    bridge_game_server15_vtable[29] = (void *)bridge_gs_has_license;
++    bridge_game_server15_vtable[30] = (void *)bridge_gs_group_status;
++    bridge_game_server15_vtable[31] = (void *)bridge_gs_gameplay_stats;
++    bridge_game_server15_vtable[32] = (void *)bridge_gs_reputation;
++    bridge_game_server15_vtable[33] = (void *)bridge_gs_public_ip;
++    bridge_game_server15_vtable[34] = (void *)bridge_gs_incoming_packet;
++    bridge_game_server15_vtable[35] = (void *)bridge_gs_outgoing_packet;
++    bridge_game_server15_vtable[36] = (void *)bridge_gs_associate_clan;
++    bridge_game_server15_vtable[37] = (void *)bridge_gs_compute_compatibility;
++    bridge_game_server15_vtable[38] = (void *)bridge_gs_connect_user;
++    bridge_game_server15_vtable[39] = (void *)bridge_gs_create_unauthenticated;
++    bridge_game_server15_vtable[40] = (void *)bridge_gs_disconnect_user;
++    bridge_game_server15_vtable[41] = (void *)bridge_gs_update_user;
++    bridge_game_server15_vtable[42] = (void *)bridge_gs_set_heartbeat_interval;
++    bridge_game_server15_vtable[43] = (void *)bridge_gs_force_heartbeat;
 +    bridge_matchmaking_servers_vtable[0] = (void *)bridge_mm_request_internet;
 +    bridge_matchmaking_servers_vtable[1] = (void *)bridge_mm_request_lan;
 +    bridge_matchmaking_servers_vtable[2] = (void *)bridge_mm_request_friends;
@@ -6173,6 +6304,11 @@ index 0000000000000000000000000000000000000000..dc4feac41f43927f58c490a4ab9edb56
 +    bridge_network_sockets_vtable[25] = (void *)bridge_network_sockets_destroy_poll;
 +    bridge_network_sockets_vtable[26] = (void *)bridge_network_sockets_set_poll;
 +    bridge_network_sockets_vtable[27] = (void *)bridge_network_sockets_receive_poll;
++    bridge_network_sockets_vtable[46] = (void *)bridge_network_sockets_create_fake;
++    bridge_network_fake_udp_vtable[0] = (void *)bridge_network_fake_udp_destroy;
++    bridge_network_fake_udp_vtable[1] = (void *)bridge_network_fake_udp_send;
++    bridge_network_fake_udp_vtable[2] = (void *)bridge_network_fake_udp_receive;
++    bridge_network_fake_udp_vtable[3] = (void *)bridge_network_fake_udp_cleanup;
 +    memcpy( bridge_network_sockets13_vtable, bridge_network_sockets_vtable,
 +            sizeof(bridge_network_sockets_vtable) );
 +    bridge_network_sockets13_vtable[12] =

@@ -1,0 +1,39 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+
+verb=${1:-}
+[[ -n $verb ]] || { printf '%s\n' 'box64-native: missing verb' >&2; exit 2; }
+shift
+
+case $verb in
+    run|runinprefix|waitforexitandrun) ;;
+    destroyprefix) exit 0 ;;
+    *) printf 'box64-native: unsupported verb: %s\n' "$verb" >&2; exit 2 ;;
+esac
+
+(($#)) || { printf '%s\n' 'box64-native: missing game executable' >&2; exit 2; }
+glibc_root=/data/data/com.termux/files/usr/glibc
+box64=$glibc_root/bin/box64
+[[ -x $box64 ]] || {
+    printf '%s\n' 'box64-native: install the box64-glibc package first' >&2
+    exit 127
+}
+
+# Steam passes the x86-64 game library path in LD_LIBRARY_PATH.
+# Keep it for Box64 while the ARM64 process only sees glibc libraries.
+guest_library_path=${BOX64_LD_LIBRARY_PATH:-${LD_LIBRARY_PATH:-}}
+unset LD_PRELOAD
+export BOX64_LD_LIBRARY_PATH=$guest_library_path
+export BOX64_LOG=${BOX64_LOG:-0}
+export BOX64_NOVULKAN=${BOX64_NOVULKAN:-0}
+export BOX64_PREFER_WRAPPED=${BOX64_PREFER_WRAPPED:-1}
+export BOX64_STEAM_VULKAN=${BOX64_STEAM_VULKAN:-1}
+export LD_LIBRARY_PATH=$glibc_root/lib
+
+vulkan_icd=$glibc_root/share/vulkan/icd.d/freedreno_icd.aarch64.json
+if [[ -f $vulkan_icd ]]; then
+    export VK_DRIVER_FILES=${VK_DRIVER_FILES:-$vulkan_icd}
+    export VK_ICD_FILENAMES=${VK_ICD_FILENAMES:-$vulkan_icd}
+fi
+
+exec "$box64" "$@"

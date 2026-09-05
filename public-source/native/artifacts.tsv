@@ -11,7 +11,7 @@ steam-proc-self-shim.so	build	glibc-aarch64	build-public-native.sh	steam-proc-se
 steam-unix-socket-shim.so	build	glibc-aarch64	build-public-native.sh	steam-unix-socket-shim.c	f4f6c23d65351025480793e761b430bdf8e62e46f54dfdd46dd666a1be3ed551
 steam-native-lsof	build	glibc-aarch64	build-public-native.sh	reference-steamclienttermux/diagnostics/native-lsof.c	a7b02fdf5568a757a422d2f8dcb4e938d5392c11a447f6d3f2e3ca9a90669e5a
 steam-bridge/lsteambridge-client	build	bionic-aarch64	build-public-native.sh	steam-bridge/client.c+protocol.h	324e153da57eef853074b9fb8e999d3d2a5d47e1c01c326a125fd4eaefb4fa2c
-steam-bridge/lsteambridge-server	build	glibc-aarch64	build-public-native.sh	steam-bridge/server.cpp+native-inc+$STEAMWORKS_SDK_DIR	95d81f6c397ce59bd4016fa4efed8878f516ed010d95d7bdaf2f64ce5691844b
+steam-bridge/lsteambridge-server	build	glibc-aarch64	build-public-native.sh	steam-bridge/server.cpp+native-inc+$STEAMWORKS_SDK_DIR	60a9367e15c0c3343096b53f7ea4a759591fb072bc761765d56655b5bc249100
 lsteamclient-bionic-build/lsteamclient.so	delegated	bionic-aarch64	public-source/lsteamclient/build-lsteamclient-public.sh	public-source/lsteamclient prepared source	-
 reference-termux-glibc-compat/build/libtgcompat-exec.so	delegated	glibc-aarch64	reference-termux-glibc-compat/Makefile	reference-termux-glibc-compat/src	73cfc2fcfe2bef852e682a8a3345fb823d244e89008c2d4fc3b2bd1c56b656de
 reference-termux-glibc-compat/build/libtgcompat-robust.so	delegated	glibc-aarch64	reference-termux-glibc-compat/Makefile	reference-termux-glibc-compat/src	31b47bfc9d86056428d032529723b8c7b446669c7d113dfb04fb2995d47c5ec5

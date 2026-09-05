@@ -80,6 +80,9 @@ contents=(
     proton-bionic-fex-tool/proton
     proton-bionic-fex-tool/compatibilitytool.vdf
     proton-bionic-fex-tool/toolmanifest.vdf
+    box64-native-tool/box64-native
+    box64-native-tool/compatibilitytool.vdf
+    box64-native-tool/toolmanifest.vdf
     proton-hangover-glibc-tool/proton
     proton-hangover-glibc-tool/compatibilitytool.vdf
     proton-hangover-glibc-tool/toolmanifest.vdf

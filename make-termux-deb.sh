@@ -75,7 +75,7 @@ Version: $PACKAGE_VERSION-$PACKAGE_REVISION
 Architecture: aarch64
 Maintainer: moio9 <noreply@github.com>
 Installed-Size: $installed_size
-Depends: bash, coreutils, curl, python, zstd, patchelf, git, clang, binutils, hangover-wine-steamswap (= 11.16-1), hangover-wowbox64 (= 11.16), hangover-libarm64ecfex (= 11.16), hangover-libwow64fex (= 11.16)
+Depends: bash, coreutils, curl, python, zstd, patchelf, git, clang, binutils, box64-glibc, hangover-wine-steamswap (= 11.16-1), hangover-wowbox64 (= 11.16), hangover-libarm64ecfex (= 11.16), hangover-libwow64fex (= 11.16)
 Section: games
 Priority: optional
 Homepage: https://github.com/moio9/steam-arm64-termux

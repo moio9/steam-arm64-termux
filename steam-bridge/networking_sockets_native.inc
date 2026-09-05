@@ -8,6 +8,7 @@ struct bridge_network_sockets_state {
     std::vector<uint8_t> send_data;
     lsteam_bridge_network_message_header received{};
     std::vector<uint8_t> received_data;
+    ISteamNetworkingFakeUDPPort *fake_udp = nullptr;
 };
 
 static bool network_sockets_receive_one(
@@ -327,6 +328,97 @@ static void handle_network_sockets_call(
             count ? reinterpret_cast<const int32_t *>(request->data) : nullptr,
             count ? reinterpret_cast<const uint16_t *>(
                 request->data + priorities_size) : nullptr);
+        break;
+    }
+    case 27: /* CreateFakeUDPPort */
+        if (!state->fake_udp)
+            state->fake_udp = sockets->CreateFakeUDPPort(
+                static_cast<int32_t>(request->arg0));
+        response->result = state->fake_udp != nullptr;
+        break;
+    case 28: /* DestroyFakeUDPPort */
+        if (state->fake_udp) {
+            state->fake_udp->DestroyFakeUDPPort();
+            state->fake_udp = nullptr;
+        }
+        response->result = 1;
+        break;
+    case 29: { /* SendMessageToFakeIP */
+        if (!state->fake_udp ||
+            request->data_size < sizeof(SteamNetworkingIPAddr)) {
+            response->status = state->fake_udp ? -EINVAL : -ENODEV;
+            break;
+        }
+        SteamNetworkingIPAddr address{};
+        memcpy(&address, request->data, sizeof(address));
+        response->result = state->fake_udp->SendMessageToFakeIP(
+            address, request->data + sizeof(address),
+            request->data_size - sizeof(address),
+            static_cast<int32_t>(request->arg0));
+        break;
+    }
+    case 30: { /* ReceiveMessages on FakeUDPPort, chunked */
+        uint32_t offset = request->arg1;
+        if (!state->fake_udp) {
+            response->status = -ENODEV;
+            break;
+        }
+        if (!offset) {
+            SteamNetworkingMessage_t *message = nullptr;
+            int count = state->fake_udp->ReceiveMessages(&message, 1);
+            if (count <= 0 || !message) {
+                response->result = 0;
+                break;
+            }
+            if (message->m_cbSize < 0 ||
+                static_cast<uint32_t>(message->m_cbSize) > maximum_message ||
+                (message->m_cbSize && !message->m_pData)) {
+                message->m_pfnRelease(message);
+                response->status = -EIO;
+                break;
+            }
+            memset(&state->received, 0, sizeof(state->received));
+            memcpy(state->received.identity, &message->m_identityPeer,
+                   sizeof(message->m_identityPeer));
+            state->received.connection = message->m_conn;
+            state->received.connection_user_data = message->m_nConnUserData;
+            state->received.time_received = message->m_usecTimeReceived;
+            state->received.message_number = message->m_nMessageNumber;
+            state->received.channel = message->m_nChannel;
+            state->received.flags = message->m_nFlags;
+            state->received.user_data = message->m_nUserData;
+            state->received.lane = message->m_idxLane;
+            state->received_data.resize(message->m_cbSize);
+            if (message->m_cbSize)
+                memcpy(state->received_data.data(), message->m_pData,
+                       message->m_cbSize);
+            message->m_pfnRelease(message);
+        }
+        if (offset > state->received_data.size()) {
+            response->status = -EINVAL;
+            break;
+        }
+        response->result = 1;
+        response->arg0 = state->received_data.size();
+        memcpy(response->data, &state->received, message_header_size);
+        size_t chunk = state->received_data.size() - offset;
+        chunk = std::min(chunk, sizeof(response->data) - message_header_size);
+        if (chunk)
+            memcpy(response->data + message_header_size,
+                   state->received_data.data() + offset, chunk);
+        response->data_size = message_header_size + chunk;
+        break;
+    }
+    case 31: { /* ScheduleCleanup */
+        if (!state->fake_udp ||
+            request->data_size != sizeof(SteamNetworkingIPAddr)) {
+            response->status = state->fake_udp ? -EINVAL : -ENODEV;
+            break;
+        }
+        SteamNetworkingIPAddr address{};
+        memcpy(&address, request->data, sizeof(address));
+        state->fake_udp->ScheduleCleanup(address);
+        response->result = 1;
         break;
     }
     default:

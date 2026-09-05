@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 BOX64 = "proton_bionic_termux"
-TERMUX_TOOLS = {BOX64, "proton_bionic_fex_termux"}
+TERMUX_TOOLS = {BOX64, "proton_bionic_fex_termux", "box64_native_termux"}
 TOKEN = re.compile(r'"(?:\\.|[^"\\])*"|[{}]')
 
 

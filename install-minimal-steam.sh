@@ -71,9 +71,13 @@ required_files=(
     "$root/proton-bionic-tool/proton"
     "$root/proton-bionic-tool/steam-runtime-steam-remote"
     "$root/proton-bionic-tool/compatibilitytool.vdf"
+    "$root/proton-bionic-tool/toolmanifest.vdf"
     "$root/proton-bionic-fex-tool/proton"
     "$root/proton-bionic-fex-tool/compatibilitytool.vdf"
     "$root/proton-bionic-fex-tool/toolmanifest.vdf"
+    "$root/box64-native-tool/box64-native"
+    "$root/box64-native-tool/compatibilitytool.vdf"
+    "$root/box64-native-tool/toolmanifest.vdf"
     "$root/proton-bionic-tool/vendor/dxvk-1.10.3/x32/d3d9.dll"
     "$root/proton-bionic-tool/vendor/dxvk-1.10.3/x64/dxgi.dll"
     "$root/proton-bionic-tool/vendor/vkd3d-proton-3.0.1/x86/d3d12.dll"
@@ -116,6 +120,7 @@ if (( ! check_only && ! skip_packages )); then
         bash coreutils diffutils findutils patchelf perl
         curl python zstd git clang binutils file
         glibc-runner bash-glibc ca-certificates-glibc
+        box64-glibc
     )
     while IFS= read -r package; do
         [[ -n $package ]] && packages+=("$package")
@@ -208,6 +213,10 @@ hangover_patch=$hangover_public/patches/0001-steamclient-swap-arm64.patch
     printf '%s\n' 'Hangover Wine is not installed correctly.' >&2
     exit 1
 }
+[[ -x $termux_prefix/glibc/bin/box64 ]] || {
+    printf '%s\n' 'Box64 glibc is missing; install box64-glibc.' >&2
+    exit 1
+}
 [[ -f $vulkan_icd ]] || {
     printf 'Vulkan driver is missing: %s\n' "$vulkan_icd" >&2
     printf '%s\n' 'Install your normal Termux Turnip driver; this package does not replace it.' >&2
@@ -275,6 +284,7 @@ if (( ! check_only )); then
         "$root/steamwebhelper-patched.sh" "$root/proton-bionic-tool/proton" \
         "$root/proton-bionic-tool/steam-runtime-steam-remote" \
         "$root/proton-bionic-fex-tool/proton" \
+        "$root/box64-native-tool/box64-native" \
         "$root/steam-bridge/run-server.sh"
 fi
 
