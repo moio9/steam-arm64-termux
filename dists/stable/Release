@@ -2,10 +2,10 @@ Origin: Steam ARM64 for Termux
 Label: Steam ARM64 for Termux
 Suite: stable
 Codename: stable
-Date: Fri, 04 Sep 2026 18:44:09 +0000
+Date: Sat, 05 Sep 2026 00:40:56 +0000
 Architectures: aarch64
 Components: main
 Description: Native ARM64 Steam packages for Termux
 SHA256:
- 1e3713a7adb3ce5b2e060c428a180252945cc569769a67770f0ac8569dc614df             1405 main/binary-aarch64/Packages
- 36a2c6c81b1d1cf048861cef2bb0303f1acc03ab898ff9e65b643ce4a4a5239f              691 main/binary-aarch64/Packages.gz
+ 129f954950057d876953762aa93fa1f2a813e6fbd23e65c7f68ddf0099d24805             1418 main/binary-aarch64/Packages
+ 781577ea0a91f183e0977cd5fb2a4ffb550f877120360f561c0242e0cd1cb14e              701 main/binary-aarch64/Packages.gz
